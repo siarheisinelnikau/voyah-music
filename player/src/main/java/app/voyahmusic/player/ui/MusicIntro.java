@@ -18,7 +18,6 @@ import android.graphics.RadialGradient;
 import android.graphics.RectF;
 import android.graphics.Shader;
 import android.graphics.Typeface;
-import android.os.Bundle;
 import android.provider.Settings;
 import android.text.TextPaint;
 import android.text.TextUtils;
@@ -51,8 +50,11 @@ import static app.voyahmusic.player.ui.IntroPacing.span;
  * A playback bar fills under the name; when it reaches the end the beat lands twice: the accent charges the steel
  * from the record outward, the mark thumps and two rings leave the record.
  *
- * <p>The intro covers the activity window from its first frame, so the player lays itself out underneath. It plays
- * once per process and only for a launch from the home screen; a tap closes it.
+ * <p>The intro plays each time the player comes back on screen from another app or the home screen, and the player
+ * itself never goes away. On a return the backdrop spreads over the player from the record like a wave while the
+ * player steps back. After a cold start the backdrop covers the window from the first frame, matching the window
+ * background, while the player lays itself out underneath. Every intro ends with the mark flying past the viewer as
+ * the iris opens from the record and the player steps forward into place. A tap runs that ending at once.
  */
 @SuppressLint("ViewConstructor") // Created in code with the activity's run settings.
 final class MusicIntro extends View {
@@ -60,52 +62,69 @@ final class MusicIntro extends View {
     static final class Timeline {
         private Timeline() {}
 
+        /** On a return the backdrop has spread over the whole player by this time. */
+        static final float VEIL_END = 240;
         static final float BODY_START = 120;
-        static final float BODY_VISIBLE = 600;
-        static final float SPIN_END = 1500;
+        static final float BODY_VISIBLE = 440;
+        static final float SPIN_END = 1040;
         /** The record turns this many times before it rests. */
         static final float SPIN_TURNS = 1.25f;
-        static final float BARS_START = 420;
-        static final float BAR_STAGGER = 40;
-        static final float BAR_RISE = 460;
-        static final float BAR_VISIBLE = 220;
-        static final float SPREAD_END = 980;
-        static final float DANCE_START = 760;
-        static final float TITLE_START = 560;
-        static final float TITLE_VISIBLE = 900;
-        static final float RULE_START = 700;
-        static final float RULE_DRAWN = 1240;
-        static final float THUMB_GONE = 1540;
-        static final float CAPTION_START = 860;
-        static final float CAPTION_VISIBLE = 1200;
-        static final float GLINT_START = 640;
-        static final float GLINT_END = 1820;
-        static final float BEAT = 1260;
-        static final float BEAT_SECOND = 1460;
-        static final float THUMP = 220;
-        static final float CHARGE_START = 1240;
-        static final float CHARGE_FULL = 1420;
-        static final float CHARGE_FADE = 1580;
-        static final float CHARGE_END = 1980;
+        static final float BARS_START = 260;
+        static final float BAR_STAGGER = 25;
+        static final float BAR_RISE = 320;
+        static final float BAR_VISIBLE = 150;
+        static final float SPREAD_END = 660;
+        static final float DANCE_START = 500;
+        static final float TITLE_START = 340;
+        static final float TITLE_VISIBLE = 600;
+        static final float RULE_START = 420;
+        static final float RULE_DRAWN = 800;
+        static final float THUMB_GONE = 1000;
+        static final float CAPTION_START = 500;
+        static final float CAPTION_VISIBLE = 760;
+        static final float GLINT_START = 400;
+        static final float GLINT_END = 1100;
+        static final float BEAT = 800;
+        static final float BEAT_SECOND = 940;
+        static final float THUMP = 180;
+        static final float CHARGE_START = 790;
+        static final float CHARGE_FULL = 900;
+        static final float CHARGE_FADE = 1000;
+        static final float CHARGE_END = 1180;
         /** Each bar charges this much later than the one nearer the record. */
-        static final float CHARGE_STAGGER = 45;
-        static final float PULSE_LENGTH = 680;
-        static final float EXIT_START = 2320;
-        static final float EXIT_END = 2700;
-        static final float BACKDROP_START = 2540;
-        static final float END = 2900;
-        /** A tap fades everything out over this time. */
-        static final float DISMISS = 220;
+        static final float CHARGE_STAGGER = 28;
+        static final float PULSE_LENGTH = 420;
+        /** The mark flies past the viewer and fades between these times. */
+        static final float EXIT_START = 1380;
+        static final float EXIT_END = 1700;
+        /** The iris opens from the record onto the player between this time and the end. */
+        static final float OPEN_START = 1440;
+        static final float END = 1780;
+        /** A tap runs the ending over this time. */
+        static final float DISMISS = 340;
         /** A point at which nearly every part is drawn, used to prepare the drawing before the intro shows. */
-        static final float WARM = 1500;
+        static final float WARM = 960;
     }
 
     /** The extra that holds a debuggable build's intro at one point of its timeline, for screenshots. */
     static final String DEBUG_PHASE = "intro_millis";
 
-    private static final int STEADY_FRAMES = 8;
-    private static final long SETTLE_LIMIT_NANOS = 700_000_000L;
+    private static final int STEADY_FRAMES = 6;
+    private static final long SETTLE_LIMIT_NANOS = 450_000_000L;
     private static final float CHARGE_DEPTH = .82f;
+    /** How far the player steps back behind the backdrop, as a share of its size. */
+    private static final float CONTENT_DEPTH = .08f;
+    /** How much the mark grows as it flies past the viewer. */
+    private static final float FLIGHT = .32f;
+    /** The share of the spreading backdrop and of the iris that is solid; the rest is a soft edge. */
+    private static final float IRIS_CLEAR = .68f;
+    private static final Object TAG = new Object();
+    private static final IntroPacing.Arrivals ARRIVALS = new IntroPacing.Arrivals();
+    /**
+     * The last intro ended because the window left the screen. Android keeps the last frame of a leaving window
+     * as the picture it shows on the way back, so that return starts from the backdrop rather than the app.
+     */
+    private static boolean interrupted;
     private static final int WARM_LIGHT = 0xFFE1C992;
 
     // The mark in its own units: 160 wide and 100 tall, the record in the middle.
@@ -130,13 +149,14 @@ final class MusicIntro extends View {
     private static final float[] SHEEN_OPACITY = {.26f, .26f, .26f, .26f, .2f};
     /** Room around each raster for antialiased edges, in mark units. */
     private static final float LAYER_MARGIN = .5f;
-    /** Rasters are drawn a little finer than the mark, which grows by up to 7% on the beat and the exit. */
-    private static final float LAYER_DETAIL = 1.08f;
-
-    private static boolean decided;
+    /** Rasters are drawn finer than the mark, which grows on the beat and as it flies past the viewer. */
+    private static final float LAYER_DETAIL = 1.25f;
 
     private final float durationScale;
     private final float heldMillis;
+    /** The player was on screen when the intro began, so the backdrop spreads over it first. */
+    private final boolean veiled;
+    private final View content;
     private final float density;
     private final String title;
     private final String caption;
@@ -159,6 +179,7 @@ final class MusicIntro extends View {
     private final TextPaint captionPaint = new TextPaint(Paint.ANTI_ALIAS_FLAG);
     private final RectF rect = new RectF();
     private final Matrix matrix = new Matrix();
+    private final Matrix irisMatrix = new Matrix();
     private final Path note = new Path();
     private final Shader barShader;
     private final Shader vinylShader;
@@ -166,6 +187,10 @@ final class MusicIntro extends View {
     private final Shader sheenShader;
     private final Shader labelShader;
     private final Shader glintShader;
+    /** The backdrop around a clear circle of radius 1 at the origin, placed and sized for each frame. */
+    private final Shader iris;
+    /** A disc of backdrop of radius 1 at the origin with a soft edge, placed and sized for each frame. */
+    private final Shader wave;
 
     private Bitmap discLayer;
     private Bitmap rimLayer;
@@ -187,9 +212,9 @@ final class MusicIntro extends View {
     private float ruleY;
     private float captionTop;
     private float ruleWidth;
-    private float pivotY;
     private float discY;
     private float glowRadius;
+    private float irisReach;
     private float titleAscent;
     private float captionAscent;
     private String shownTitle = "";
@@ -208,26 +233,39 @@ final class MusicIntro extends View {
     private boolean finished;
     private boolean shown;
     private float introMillis;
-    private float dismissFade = 1f;
+    /** How far a tap has run the ending, 0..1. */
+    private float dismissed;
 
     /**
-     * Covers the window with the intro when this is the first launch of the player from the home screen in this
-     * process, the intro is enabled and system animations are on.
+     * Called from the activity's {@code onStart}. Plays the intro when the player comes back on screen from another
+     * app or the home screen, the intro is enabled and system animations are on.
      */
-    static void showOnLaunch(Activity activity, Bundle saved, boolean enabled) {
+    static void onActivityStart(Activity activity, boolean enabled) {
+        boolean arrived = ARRIVALS.onStart();
         float held = heldMillis(activity);
-        if (held < 0f) {
-            if (decided) return;
-            decided = true;
-            Intent intent = activity.getIntent();
-            if (saved != null || !enabled || intent == null || !Intent.ACTION_MAIN.equals(intent.getAction())) return;
-        }
+        if (held < 0f && (!arrived || !enabled)) return;
         float scale = Settings.Global.getFloat(activity.getContentResolver(),
                 Settings.Global.ANIMATOR_DURATION_SCALE, 1f);
         if (held < 0f && (!ValueAnimator.areAnimatorsEnabled() || scale <= 0f)) return;
         ViewGroup decor = (ViewGroup) activity.getWindow().getDecorView();
-        decor.addView(new MusicIntro(activity, Math.max(scale, .01f), held),
+        View previous = decor.findViewWithTag(TAG);
+        if (previous instanceof MusicIntro) ((MusicIntro) previous).finish();
+        // A window that is already attached shows the player as it was left, from a snapshot or on its own; a new
+        // window starts from the plain window background, which the backdrop matches.
+        boolean veiled = held < 0f && decor.isAttachedToWindow() && !interrupted;
+        interrupted = false;
+        decor.addView(new MusicIntro(activity, Math.max(scale, .01f), held, veiled),
                 new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+    }
+
+    /** Called from the activity's {@code onStop}. */
+    static void onActivityStop(Activity activity) {
+        ARRIVALS.onStop(activity.isChangingConfigurations());
+    }
+
+    /** Called when the activity opens another screen itself, so that coming back from it skips the intro. */
+    static void onOwnScreenOpened() {
+        ARRIVALS.handOff();
     }
 
     private static float heldMillis(Activity activity) {
@@ -236,10 +274,13 @@ final class MusicIntro extends View {
         return debuggable && intent != null ? intent.getFloatExtra(DEBUG_PHASE, -1f) : -1f;
     }
 
-    private MusicIntro(Activity activity, float durationScale, float heldMillis) {
+    private MusicIntro(Activity activity, float durationScale, float heldMillis, boolean veiled) {
         super(activity);
         this.durationScale = durationScale;
         this.heldMillis = heldMillis;
+        this.veiled = veiled;
+        content = activity.findViewById(android.R.id.content);
+        setTag(TAG);
         density = getResources().getDisplayMetrics().density;
         title = activity.getString(R.string.player_name);
         caption = activity.getString(R.string.player_intro_caption);
@@ -292,6 +333,12 @@ final class MusicIntro extends View {
         glintShader = new LinearGradient(0f, 0f, 30f, -17f,
                 new int[] {Color.TRANSPARENT, mix(Color.WHITE, accent, .10f), Color.TRANSPARENT}, null,
                 Shader.TileMode.CLAMP);
+        iris = new RadialGradient(0f, 0f, 1f,
+                new int[] {alpha(UiKit.BACKGROUND, 0f), alpha(UiKit.BACKGROUND, 0f), UiKit.BACKGROUND},
+                new float[] {0f, IRIS_CLEAR, 1f}, Shader.TileMode.CLAMP);
+        wave = new RadialGradient(0f, 0f, 1f,
+                new int[] {UiKit.BACKGROUND, UiKit.BACKGROUND, alpha(UiKit.BACKGROUND, 0f)},
+                new float[] {0f, IRIS_CLEAR, 1f}, Shader.TileMode.CLAMP);
     }
 
     /** The beamed notes of the Voyah Music icon, centered on the record's label. */
@@ -331,14 +378,20 @@ final class MusicIntro extends View {
     @Override protected void onDetachedFromWindow() {
         Choreographer.getInstance().removeFrameCallback(tick);
         scheduled = false;
+        placeContent(0f);
         super.onDetachedFromWindow();
     }
 
     @Override protected void onWindowVisibilityChanged(int visibility) {
         super.onWindowVisibilityChanged(visibility);
-        // Leaving the player while the intro plays ends it; the player is waiting underneath on return.
-        if (visibility == VISIBLE) shown = true;
-        else if (shown && heldMillis < 0f) post(this::finish);
+        // Leaving the player while the intro plays ends it; the next return plays it again.
+        if (visibility == VISIBLE) {
+            shown = true;
+            if (heldMillis < 0f) schedule();
+        } else if (shown && heldMillis < 0f && !finished) {
+            interrupted = clock != null || !veiled;
+            post(this::finish);
+        }
     }
 
     @Override public boolean onTouchEvent(MotionEvent event) {
@@ -366,19 +419,21 @@ final class MusicIntro extends View {
     private void onFrame(long now) {
         scheduled = false;
         if (finished) return;
+        // A returning window may still be hidden when the intro starts; frames count once it shows.
+        if (getWindowVisibility() != VISIBLE) return;
         if (clock == null && !dismissRequested) {
             if (firstFrame < 0) firstFrame = now;
-            if (settle.onFrame(now) || now - firstFrame >= SETTLE_LIMIT_NANOS) {
+            // A returning window already shows the player, so its intro starts with the first visible frame.
+            if (veiled || settle.onFrame(now) || now - firstFrame >= SETTLE_LIMIT_NANOS) {
                 clock = new IntroPacing.Clock(frameNanos, (long) (Timeline.END * durationScale * 1_000_000L));
             }
         }
         if (clock != null) introMillis = clock.onFrame(now) / 1_000_000f / durationScale;
-        float dismissed = 0f;
         if (dismissRequested) {
             if (dismissedAt < 0) dismissedAt = now;
-            dismissed = (now - dismissedAt) / (Timeline.DISMISS * durationScale * 1_000_000f);
-            dismissFade = 1f - Easing.STANDARD.at(clamp(dismissed));
+            dismissed = clamp((now - dismissedAt) / (Timeline.DISMISS * durationScale * 1_000_000f));
         }
+        placeContent(clock != null || dismissRequested ? contentDepth(introMillis) : veiled ? 0f : 1f);
         invalidate();
         if (introMillis >= Timeline.END || dismissed >= 1f) finish();
         else schedule();
@@ -388,8 +443,41 @@ final class MusicIntro extends View {
         if (finished) return;
         finished = true;
         Choreographer.getInstance().removeFrameCallback(tick);
+        placeContent(0f);
         ViewParent parent = getParent();
         if (parent instanceof ViewGroup) ((ViewGroup) parent).removeView(this);
+    }
+
+    /** How far the player stands back: it steps back while the backdrop spreads and forward while the iris opens. */
+    private float contentDepth(float t) {
+        float closed = veiled ? ease(t, 0f, Timeline.VEIL_END) : 1f;
+        float opened = Easing.DECELERATE.at(Math.max(span(t, Timeline.OPEN_START, Timeline.END), dismissed));
+        return Math.min(closed, 1f - opened);
+    }
+
+    /** Scales the player down by {@code depth} times {@link #CONTENT_DEPTH} around the record. */
+    private void placeContent(float depth) {
+        if (content == null) return;
+        if (depth <= 0f) {
+            content.setScaleX(1f);
+            content.setScaleY(1f);
+            content.resetPivot();
+            return;
+        }
+        // The intro covers the window, so the record in the player's own coordinates is offset by its position.
+        float x = centerX;
+        float y = discY;
+        for (View view = content; view != null && view != getParent(); ) {
+            x -= view.getLeft();
+            y -= view.getTop();
+            ViewParent parent = view.getParent();
+            view = parent instanceof View ? (View) parent : null;
+        }
+        float scale = 1f - CONTENT_DEPTH * depth;
+        content.setPivotX(x);
+        content.setPivotY(y);
+        content.setScaleX(scale);
+        content.setScaleY(scale);
     }
 
     @Override protected void onSizeChanged(int width, int height, int oldWidth, int oldHeight) {
@@ -415,12 +503,12 @@ final class MusicIntro extends View {
         titleTop = top + markHeight + dp(18);
         ruleY = titleTop + titleHeight + dp(14);
         captionTop = ruleY + dp(2) + dp(12);
-        pivotY = top + block / 2f;
         ruleWidth = Math.min(Math.max(Math.max(titleWidth, captionWidth), dp(180)), maxText);
         discY = top + CY * markScale;
         glowRadius = Math.max(1f, markHeight * 1.25f);
+        irisReach = (float) Math.max(Math.hypot(centerX, discY), Math.hypot(width - centerX, height - discY));
+        if (heldMillis >= 0f) post(() -> placeContent(contentDepth(heldMillis)));
 
-        int backdrop = UiKit.BACKGROUND;
         float shortEdge = Math.max(1f, Math.min(width, height));
         coolLight = new RadialGradient(width * .94f, height * .06f, shortEdge * 1.1f,
                 new int[] {alpha(accent, .09f), alpha(accent, .025f), alpha(accent, 0f)}, null, Shader.TileMode.CLAMP);
@@ -436,33 +524,63 @@ final class MusicIntro extends View {
                 new int[] {alpha(accent, 0f), accent, alpha(accent, 0f)}, null, Shader.TileMode.CLAMP);
         thumbGlow = new RadialGradient(0f, 0f, dp(15),
                 new int[] {alpha(accent, .45f), alpha(accent, 0f)}, null, Shader.TileMode.CLAMP);
-        plain.setColor(backdrop);
     }
 
     @Override protected void onDraw(Canvas canvas) {
-        int width = getWidth();
-        int height = getHeight();
         if (clock == null && heldMillis < 0f && !dismissRequested) {
+            // A returning player stays on screen as it was left until its window shows.
+            if (veiled) return;
             // Drawn once per frame under the opaque backdrop while frames settle, so that the first visible
             // frames do not pay for shaders, paths and text.
-            drawIntro(canvas, Timeline.WARM, 1f);
-            plain.setColor(UiKit.BACKGROUND);
-            canvas.drawRect(0, 0, width, height, plain);
+            drawIntro(canvas, Timeline.WARM, 0f, 1f);
+            drawBackdrop(canvas, 0f);
             return;
         }
         float t = introMillis;
-        float cover = (1f - ease(t, Timeline.BACKDROP_START, Timeline.END)) * dismissFade;
-        if (cover > 0f) {
-            plain.setColor(alpha(UiKit.BACKGROUND, cover));
-            canvas.drawRect(0, 0, width, height, plain);
-        }
-        drawIntro(canvas, t, dismissFade);
+        float closed = veiled ? ease(t, 0f, Timeline.VEIL_END) : 1f;
+        float open = Easing.STANDARD.at(Math.max(span(t, Timeline.OPEN_START, Timeline.END), dismissed));
+        if (closed < 1f) drawWave(canvas, closed * (1f - open));
+        else drawBackdrop(canvas, open);
+        drawIntro(canvas, t, Math.max(span(t, Timeline.EXIT_START, Timeline.EXIT_END), dismissed),
+                closed * (1f - open));
     }
 
-    private void drawIntro(Canvas canvas, float t, float fade) {
+    /** The backdrop spreading from the record over the player: {@code reach} 0 shows the player, 1 covers it all. */
+    private void drawWave(Canvas canvas, float reach) {
+        if (reach <= 0f) return;
+        float radius = Math.max(1f, irisReach * reach / IRIS_CLEAR);
+        irisMatrix.setScale(radius, radius);
+        irisMatrix.postTranslate(centerX, discY);
+        wave.setLocalMatrix(irisMatrix);
+        plain.setShader(wave);
+        plain.setColor(Color.BLACK);
+        canvas.drawRect(0, 0, getWidth(), getHeight(), plain);
+        plain.setShader(null);
+    }
+
+    /** The backdrop around a soft round opening at the record: {@code hole} 0 covers the player, 1 shows it all. */
+    private void drawBackdrop(Canvas canvas, float hole) {
+        if (hole >= 1f) return;
+        plain.setShader(null);
+        plain.setColor(UiKit.BACKGROUND);
+        if (hole > 0f) {
+            float radius = Math.max(1f, irisReach * hole / IRIS_CLEAR);
+            irisMatrix.setScale(radius, radius);
+            irisMatrix.postTranslate(centerX, discY);
+            iris.setLocalMatrix(irisMatrix);
+            plain.setShader(iris);
+        }
+        canvas.drawRect(0, 0, getWidth(), getHeight(), plain);
+        plain.setShader(null);
+    }
+
+    /**
+     * The mark, the name and the corner lights at intro time {@code t}. {@code leave} runs the exit from 0 to 1
+     * and {@code lights} dims the corner lights while the player shows around the backdrop.
+     */
+    private void drawIntro(Canvas canvas, float t, float leave, float lights) {
         if (t <= Timeline.BODY_START || markScale <= 0f) return;
-        float exit = ease(t, Timeline.EXIT_START, Timeline.EXIT_END);
-        float out = (1f - exit) * fade;
+        float out = 1f - Easing.STANDARD.at(leave);
         if (out <= 0f) return;
         float reveal = ease(t, Timeline.BODY_START, Timeline.BODY_VISIBLE);
         float charge = charge(t);
@@ -473,15 +591,15 @@ final class MusicIntro extends View {
 
         fill.setColorFilter(null);
         fill.setShader(coolLight);
-        fill.setAlpha(alpha255(reveal * out));
+        fill.setAlpha(alpha255(reveal * out * lights));
         canvas.drawRect(0, 0, getWidth(), getHeight(), fill);
         fill.setShader(warmShade);
         canvas.drawRect(0, 0, getWidth(), getHeight(), fill);
 
         canvas.save();
-        // The mark leaves by easing slightly toward the viewer while it fades.
-        float exitScale = 1f + .045f * exit;
-        canvas.scale(exitScale, exitScale, centerX, pivotY);
+        // The mark leaves by flying past the viewer from the record, faster as it goes, while it fades.
+        float flight = 1f + FLIGHT * Easing.ACCELERATE.at(leave);
+        canvas.scale(flight, flight, centerX, discY);
 
         fill.setShader(ambient);
         fill.setAlpha(alpha255(reveal * out));
@@ -541,8 +659,8 @@ final class MusicIntro extends View {
     /** The equalizer wings: bars rise outward from the record, dance, settle into an arch and kick on the beat. */
     private void drawBars(Canvas canvas, float t, float out, float thump, float glint) {
         float spread = Easing.SPRING.at(span(t, Timeline.BARS_START, Timeline.SPREAD_END));
-        float dance = ease(t, Timeline.BARS_START + 200f, Timeline.DANCE_START)
-                * (1f - ease(t, Timeline.DANCE_START + 120f, Timeline.BEAT)) * .42f;
+        float dance = ease(t, Timeline.BARS_START + 120f, Timeline.DANCE_START)
+                * (1f - ease(t, Timeline.DANCE_START + 80f, Timeline.BEAT)) * .42f;
         float seconds = t / 1000f;
         for (int i = 0; i < BAR_HEIGHTS.length; i++) {
             float start = Timeline.BARS_START + i * Timeline.BAR_STAGGER;

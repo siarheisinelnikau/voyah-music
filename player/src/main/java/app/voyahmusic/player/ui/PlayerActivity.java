@@ -111,7 +111,6 @@ public final class PlayerActivity extends MusicActivity {
             folderId = saved.getLong("folder");
         }
         renderRoute();
-        MusicIntro.showOnLaunch(this, saved, prefs.startupAnimation());
     }
 
     @Override
@@ -136,6 +135,7 @@ public final class PlayerActivity extends MusicActivity {
     @Override
     protected void onStart() {
         super.onStart();
+        MusicIntro.onActivityStart(this, prefs.startupAnimation());
         visible = true;
         model.observe(this::tracks, this::renderReceiver);
         model.refresh();
@@ -158,7 +158,15 @@ public final class PlayerActivity extends MusicActivity {
         if (bound) unbindService(connection);
         bound = false;
         playback = null;
+        MusicIntro.onActivityStop(this);
         super.onStop();
+    }
+
+    @Override
+    public void startActivityForResult(Intent intent, int requestCode, Bundle options) {
+        // The installer and other screens opened from here belong to this visit, so coming back skips the intro.
+        MusicIntro.onOwnScreenOpened();
+        super.startActivityForResult(intent, requestCode, options);
     }
 
     @Override

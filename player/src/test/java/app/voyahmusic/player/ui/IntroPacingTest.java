@@ -12,7 +12,7 @@ public class IntroPacingTest {
     @Test public void easingStartsAndEndsInPlaceAndStandardNeverOvershoots() {
         for (IntroPacing.Easing easing : new IntroPacing.Easing[] {
                 IntroPacing.Easing.STANDARD, IntroPacing.Easing.DECELERATE, IntroPacing.Easing.SPRING,
-                IntroPacing.Easing.BACK}) {
+                IntroPacing.Easing.BACK, IntroPacing.Easing.ACCELERATE}) {
             assertEquals(0f, easing.at(0f), 0f);
             assertEquals(1f, easing.at(1f), 0f);
             assertEquals(0f, easing.at(-1f), 0f);
@@ -47,6 +47,44 @@ public class IntroPacingTest {
         assertTrue(peak < high);
         // After the peak the curve only falls back toward its end.
         for (int step = peakStep + 1; step <= 200; step++) assertTrue(easing.at(step / 200f) <= peak);
+    }
+
+    @Test public void theFirstStartAndEveryReturnFromOutsideTheAppAreArrivals() {
+        IntroPacing.Arrivals arrivals = new IntroPacing.Arrivals();
+        assertTrue(arrivals.onStart());
+        // Another app or the home screen covers the activity.
+        arrivals.onStop(false);
+        assertTrue(arrivals.onStart());
+        arrivals.onStop(false);
+        assertTrue(arrivals.onStart());
+        // A start without a stop in between brings nothing back.
+        assertFalse(arrivals.onStart());
+    }
+
+    @Test public void configurationChangesAndOwnScreensAreNotArrivals() {
+        IntroPacing.Arrivals arrivals = new IntroPacing.Arrivals();
+        assertTrue(arrivals.onStart());
+        arrivals.onStop(true);
+        assertFalse(arrivals.onStart());
+        arrivals.handOff();
+        arrivals.onStop(false);
+        assertFalse(arrivals.onStart());
+        // The hand-off covers one visit only; leaving for the home screen afterwards counts again.
+        arrivals.onStop(false);
+        assertTrue(arrivals.onStart());
+    }
+
+    @Test public void accelerateLeavesFasterThanItStarts() {
+        float early = IntroPacing.Easing.ACCELERATE.at(.25f);
+        float late = 1f - IntroPacing.Easing.ACCELERATE.at(.75f);
+        assertTrue(early < .25f);
+        assertTrue(late < .75f - .25f);
+        float previous = 0f;
+        for (int step = 1; step <= 100; step++) {
+            float value = IntroPacing.Easing.ACCELERATE.at(step / 100f);
+            assertTrue(value >= previous);
+            previous = value;
+        }
     }
 
     @Test public void spanClampsToTheStage() {
@@ -99,10 +137,15 @@ public class IntroPacingTest {
         float pulses = MusicIntro.Timeline.BEAT_SECOND + MusicIntro.Timeline.PULSE_LENGTH;
         float settled = Math.max(MusicIntro.Timeline.SPIN_END, MusicIntro.Timeline.GLINT_END);
         assertTrue(Math.max(charged, Math.max(pulses, settled)) < MusicIntro.Timeline.EXIT_START);
-        assertTrue(MusicIntro.Timeline.EXIT_START < MusicIntro.Timeline.BACKDROP_START);
-        assertTrue(MusicIntro.Timeline.BACKDROP_START < MusicIntro.Timeline.EXIT_END);
+        // The iris opens while the mark flies off, and the whole intro stays short enough to play on every return.
+        assertTrue(MusicIntro.Timeline.EXIT_START < MusicIntro.Timeline.OPEN_START);
+        assertTrue(MusicIntro.Timeline.OPEN_START < MusicIntro.Timeline.EXIT_END);
         assertTrue(MusicIntro.Timeline.EXIT_END < MusicIntro.Timeline.END);
-        assertTrue(MusicIntro.Timeline.END <= 3_000f);
+        assertTrue(MusicIntro.Timeline.END <= 1_800f);
+        // The dance starts once the bars have risen, and the thumb is still on the bar at the warm-up point.
+        assertTrue(MusicIntro.Timeline.BARS_START + 120f < MusicIntro.Timeline.DANCE_START);
+        assertTrue(MusicIntro.Timeline.RULE_DRAWN < MusicIntro.Timeline.WARM);
+        assertTrue(MusicIntro.Timeline.WARM < MusicIntro.Timeline.THUMB_GONE);
     }
 
     @Test public void aBeatRisesQuicklyAndFadesOut() {
