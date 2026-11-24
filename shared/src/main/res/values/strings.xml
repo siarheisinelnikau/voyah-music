@@ -16,6 +16,8 @@
     <string name="update_available_short">Update available</string>
     <string name="installed_version">Installed version %1$s</string>
     <string name="startup_updates">Check for updates on startup</string>
+    <string name="startup_animation">Startup animation</string>
+    <string name="player_intro_caption">Your music on the road</string>
     <string name="check_updates">Check for updates</string>
     <string name="checking">Checking for updates…</string>
     <string name="up_to_date">You have the latest version.</string>

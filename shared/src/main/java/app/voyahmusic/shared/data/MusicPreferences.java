@@ -38,6 +38,14 @@ public final class MusicPreferences {
         values.edit().putBoolean("startup_updates", enabled).apply();
     }
 
+    public boolean startupAnimation() {
+        return values.getBoolean("startup_animation", true);
+    }
+
+    public void startupAnimation(boolean enabled) {
+        values.edit().putBoolean("startup_animation", enabled).apply();
+    }
+
     public static Context localized(Context context) {
         String language = new MusicPreferences(context).language();
         if ("system".equals(language)) return context;

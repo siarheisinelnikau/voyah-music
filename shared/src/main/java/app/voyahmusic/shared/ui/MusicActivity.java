@@ -79,6 +79,11 @@ public abstract class MusicActivity extends Activity {
 
     protected abstract void showMain();
 
+    /** Whether this app plays a startup intro, which Settings can then turn off. */
+    protected boolean hasStartupAnimation() {
+        return false;
+    }
+
     protected void openSettings() {
         settings = true;
         showSettings();
@@ -181,6 +186,15 @@ public abstract class MusicActivity extends Activity {
                                 recreate();
                             }
                         }).setNegativeButton(R.string.cancel, null).show()), MATCH, WRAP, 8);
+        if (hasStartupAnimation()) {
+            Switch intro = new Switch(this);
+            intro.setText(R.string.startup_animation);
+            intro.setTextColor(UiKit.TEXT);
+            intro.setMinHeight(ui.dp(48));
+            intro.setChecked(prefs.startupAnimation());
+            intro.setOnCheckedChangeListener((button, enabled) -> prefs.startupAnimation(enabled));
+            ui.add(appearance, intro, MATCH, WRAP, 10);
+        }
 
         LinearLayout releases = ui.card(16);
         ui.add(cards, releases, MATCH, WRAP, 12);

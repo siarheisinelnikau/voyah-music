@@ -111,6 +111,12 @@ public final class PlayerActivity extends MusicActivity {
             folderId = saved.getLong("folder");
         }
         renderRoute();
+        MusicIntro.showOnLaunch(this, saved, prefs.startupAnimation());
+    }
+
+    @Override
+    protected boolean hasStartupAnimation() {
+        return true;
     }
 
     @Override

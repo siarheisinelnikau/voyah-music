@@ -16,6 +16,8 @@
     <string name="update_available_short">Жаңарту бар</string>
     <string name="installed_version">Орнатылған нұсқа %1$s</string>
     <string name="startup_updates">Іске қосылғанда жаңартуларды тексеру</string>
+    <string name="startup_animation">Іске қосу анимациясы</string>
+    <string name="player_intro_caption">Жолдағы өз музыкаңыз</string>
     <string name="check_updates">Жаңартуларды тексеру</string>
     <string name="checking">Жаңартулар тексерілуде…</string>
     <string name="up_to_date">Соңғы нұсқа орнатылған.</string>
