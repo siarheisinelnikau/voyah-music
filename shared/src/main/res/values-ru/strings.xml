@@ -22,6 +22,11 @@
     <string name="wave">Волна</string>
     <string name="visualization_off">Выкл.</string>
     <string name="smooth_visualization">Плавная визуализация</string>
+    <string name="sort_tracks">Сортировка</string>
+    <string name="sort_title">По названию</string>
+    <string name="sort_artist">По исполнителю</string>
+    <string name="sort_album">По альбому</string>
+    <string name="sort_added">Сначала новые</string>
     <string name="player_intro_caption">Ваша музыка в дороге</string>
     <string name="check_updates">Проверить обновления</string>
     <string name="checking">Проверяем обновления…</string>

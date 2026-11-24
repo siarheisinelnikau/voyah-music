@@ -22,6 +22,11 @@
     <string name="wave">Wave</string>
     <string name="visualization_off">Off</string>
     <string name="smooth_visualization">Smooth visualization</string>
+    <string name="sort_tracks">Sort</string>
+    <string name="sort_title">By title</string>
+    <string name="sort_artist">By artist</string>
+    <string name="sort_album">By album</string>
+    <string name="sort_added">Recently added</string>
     <string name="player_intro_caption">Your music on the road</string>
     <string name="check_updates">Check for updates</string>
     <string name="checking">Checking for updates…</string>

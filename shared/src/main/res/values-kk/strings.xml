@@ -22,6 +22,11 @@
     <string name="wave">Толқын</string>
     <string name="visualization_off">Өшіру</string>
     <string name="smooth_visualization">Бірқалыпты визуализация</string>
+    <string name="sort_tracks">Сұрыптау</string>
+    <string name="sort_title">Атауы бойынша</string>
+    <string name="sort_artist">Орындаушы бойынша</string>
+    <string name="sort_album">Альбом бойынша</string>
+    <string name="sort_added">Алдымен жаңалары</string>
     <string name="player_intro_caption">Жолдағы өз музыкаңыз</string>
     <string name="check_updates">Жаңартуларды тексеру</string>
     <string name="checking">Жаңартулар тексерілуде…</string>

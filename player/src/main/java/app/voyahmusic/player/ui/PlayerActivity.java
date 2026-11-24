@@ -43,6 +43,7 @@ import app.voyahmusic.player.PlayerApp;
 import app.voyahmusic.player.data.MusicLibrary;
 import app.voyahmusic.player.data.TrustedPhones;
 import app.voyahmusic.player.domain.Track;
+import app.voyahmusic.player.domain.TrackOrder;
 import app.voyahmusic.player.playback.PlaybackService;
 import app.voyahmusic.shared.R;
 import app.voyahmusic.shared.lan.MusicWire;
@@ -95,6 +96,7 @@ public final class PlayerActivity extends MusicActivity {
     private ImageButton previous, play, next, shuffle, repeat;
     private Button receiveButton;
     private SeekBar seek;
+    private ImageButton sortButton;
     private MusicVisualizer visualizer;
     private FrameLayout stage;
     private View emblem;
@@ -348,6 +350,9 @@ public final class PlayerActivity extends MusicActivity {
         ui.truncate(libraryTitle, 1);
         header.addView(libraryTitle, ui.weighted());
         ui.gap(header, 6);
+        sortButton = ui.iconButton(UiKit.Icon.SORT, getText(R.string.sort_tracks), false, this::chooseOrder);
+        header.addView(sortButton, ui.dp(48), ui.dp(48));
+        ui.gap(header, 8);
         if (folderId == 0) {
             header.addView(ui.iconButton(UiKit.Icon.FOLDER_ADD, getText(R.string.new_folder), false, this::createFolder),
                     ui.dp(48), ui.dp(48));
@@ -407,7 +412,7 @@ public final class PlayerActivity extends MusicActivity {
 
     private void tracks(MusicLibrary.Snapshot value) {
         librarySnapshot = value;
-        tracks = value.tracks();
+        tracks = TrackOrder.parse(prefs.trackOrder()).sort(value.tracks());
         if (playback != null) playback.setTracks(tracks);
         if (!settings && !receiving) filter();
         renderPlayback();
@@ -438,6 +443,27 @@ public final class PlayerActivity extends MusicActivity {
         }
         adapter.rows = result;
         adapter.notifyDataSetChanged();
+    }
+
+    /** Lets the driver order the library; the queue follows, so next always plays the row below. */
+    private void chooseOrder() {
+        TrackOrder current = TrackOrder.parse(prefs.trackOrder());
+        TrackOrder[] orders = TrackOrder.values();
+        int[] names = {R.string.sort_title, R.string.sort_artist, R.string.sort_album, R.string.sort_added};
+        PopupMenu popup = new PopupMenu(this, sortButton);
+        for (int index = 0; index < orders.length; index++) {
+            popup.getMenu().add(1, index, index, names[index]).setCheckable(true).setChecked(orders[index] == current);
+        }
+        popup.getMenu().setGroupCheckable(1, true, true);
+        popup.setOnMenuItemClickListener(item -> {
+            TrackOrder chosen = orders[item.getItemId()];
+            if (chosen != current) {
+                prefs.trackOrder(chosen.key);
+                if (librarySnapshot != null) tracks(librarySnapshot);
+            }
+            return true;
+        });
+        popup.show();
     }
 
     private void openFolder(long id) {
@@ -774,6 +800,7 @@ public final class PlayerActivity extends MusicActivity {
             duration = ui.text("", 14, UiKit.MUTED, false);
             ui.gap(row, 6);
             row.addView(duration, WRAP, WRAP);
+            ui.gap(row, 8);
             options = ui.iconButton(UiKit.Icon.MORE, getText(R.string.track_options), false, this::openOptions);
             row.addView(options, ui.dp(48), ui.dp(48));
             addView(row, MATCH, WRAP);

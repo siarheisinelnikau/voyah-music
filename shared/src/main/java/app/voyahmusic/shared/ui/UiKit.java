@@ -38,7 +38,7 @@ public final class UiKit {
     public static final int ERROR = 0xffffbaaa;
 
     public enum Icon { NOTE, SEND, SETTINGS, BACK, PREVIOUS, NEXT, PLAY, PAUSE, SHUFFLE, REPEAT, REPEAT_ONE, MORE,
-        CLOSE, SEARCH, FOLDER, FOLDER_ADD }
+        CLOSE, SEARCH, FOLDER, FOLDER_ADD, SORT }
 
     public final int accent;
     public final int onAccent;
@@ -283,6 +283,11 @@ public final class UiKit {
                 case CLOSE -> {
                     lines(canvas, 6, 6, 18, 18);
                     lines(canvas, 6, 18, 18, 6);
+                }
+                case SORT -> {
+                    lines(canvas, 4, 7, 20, 7);
+                    lines(canvas, 4, 12, 15, 12);
+                    lines(canvas, 4, 17, 10, 17);
                 }
                 case SEARCH -> {
                     canvas.drawCircle(10, 10, 5.5f, paint);

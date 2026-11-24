@@ -55,6 +55,15 @@ public final class MusicPreferences {
         values.edit().putString("visualization", mode).apply();
     }
 
+    /** The player's library order: {@code title}, {@code artist}, {@code album} or {@code added}. */
+    public String trackOrder() {
+        return values.getString("track_order", "title");
+    }
+
+    public void trackOrder(String order) {
+        values.edit().putString("track_order", order).apply();
+    }
+
     public boolean smoothVisualization() {
         return values.getBoolean("smooth_visualization", true);
     }
