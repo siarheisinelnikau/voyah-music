@@ -1,0 +1,12 @@
+plugins {
+    id 'com.android.library'
+}
+
+android {
+    namespace 'app.voyahmusic.shared'
+}
+
+dependencies {
+    implementation 'com.google.zxing:core:3.5.4'
+    testImplementation 'junit:junit:4.13.2'
+}
