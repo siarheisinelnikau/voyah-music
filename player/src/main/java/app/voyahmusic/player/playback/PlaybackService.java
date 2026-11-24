@@ -269,16 +269,12 @@ public final class PlaybackService extends Service {
         if (started && state.wantsPlay()) {
             startForeground(NOTIFICATION, notification(current));
             foreground = true;
-        } else if (!state.wantsPlay()) {
-            if (foreground) {
-                stopForeground(STOP_FOREGROUND_REMOVE);
-                foreground = false;
-            }
-            if (started) {
-                started = false;
-                stopSelf();
-                session.setActive(false);
-            }
+        } else if (!state.wantsPlay() && foreground) {
+            // A paused player stays started, and ExoPlayer keeps media focus while it is paused, so the firmware still
+            // counts the player as the current source and the steering wheel can resume it. Android stops the idle
+            // service in the background later, which releases the player and its focus.
+            stopForeground(STOP_FOREGROUND_REMOVE);
+            foreground = false;
         }
         for (Runnable listener : listeners) listener.run();
     }
