@@ -46,6 +46,23 @@ public final class MusicPreferences {
         values.edit().putBoolean("startup_animation", enabled).apply();
     }
 
+    /** The player's visualization: {@code spectrum}, {@code wave} or {@code off}, as in Voyah Radio. */
+    public String visualization() {
+        return values.getString("visualization", "spectrum");
+    }
+
+    public void visualization(String mode) {
+        values.edit().putString("visualization", mode).apply();
+    }
+
+    public boolean smoothVisualization() {
+        return values.getBoolean("smooth_visualization", true);
+    }
+
+    public void smoothVisualization(boolean enabled) {
+        values.edit().putBoolean("smooth_visualization", enabled).apply();
+    }
+
     public static Context localized(Context context) {
         String language = new MusicPreferences(context).language();
         if ("system".equals(language)) return context;

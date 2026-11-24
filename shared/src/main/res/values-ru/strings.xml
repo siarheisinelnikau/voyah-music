@@ -17,6 +17,11 @@
     <string name="installed_version">Установлена версия %1$s</string>
     <string name="startup_updates">Проверять обновления при запуске</string>
     <string name="startup_animation">Анимация при запуске</string>
+    <string name="visualization">Визуализация</string>
+    <string name="spectrum">Спектр</string>
+    <string name="wave">Волна</string>
+    <string name="visualization_off">Выкл.</string>
+    <string name="smooth_visualization">Плавная визуализация</string>
     <string name="player_intro_caption">Ваша музыка в дороге</string>
     <string name="check_updates">Проверить обновления</string>
     <string name="checking">Проверяем обновления…</string>

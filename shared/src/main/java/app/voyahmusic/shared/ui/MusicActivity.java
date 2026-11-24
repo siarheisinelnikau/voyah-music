@@ -80,6 +80,11 @@ public abstract class MusicActivity extends Activity {
     protected abstract void showMain();
 
     /** Whether this app plays a startup intro, which Settings can then turn off. */
+    /** Whether Settings offers the playback visualization; only the player draws one. */
+    protected boolean hasVisualization() {
+        return false;
+    }
+
     protected boolean hasStartupAnimation() {
         return false;
     }
@@ -186,6 +191,29 @@ public abstract class MusicActivity extends Activity {
                                 recreate();
                             }
                         }).setNegativeButton(R.string.cancel, null).show()), MATCH, WRAP, 8);
+        if (hasVisualization()) {
+            ui.add(appearance, ui.text(getText(R.string.visualization), 14, UiKit.MUTED, false), MATCH, WRAP, 17);
+            LinearLayout modes = ui.row();
+            String[] visualModes = {"spectrum", "wave", "off"};
+            int[] names = {R.string.spectrum, R.string.wave, R.string.visualization_off};
+            for (int index = 0; index < visualModes.length; index++) {
+                String mode = visualModes[index];
+                if (index > 0) ui.gap(modes, 8);
+                modes.addView(ui.button(getText(names[index]), mode.equals(prefs.visualization()), () -> {
+                    if (mode.equals(prefs.visualization())) return;
+                    prefs.visualization(mode);
+                    showSettings();
+                }), ui.weighted());
+            }
+            ui.add(appearance, modes, MATCH, WRAP, 8);
+            Switch smooth = new Switch(this);
+            smooth.setText(R.string.smooth_visualization);
+            smooth.setTextColor(UiKit.TEXT);
+            smooth.setMinHeight(ui.dp(48));
+            smooth.setChecked(prefs.smoothVisualization());
+            smooth.setOnCheckedChangeListener((button, enabled) -> prefs.smoothVisualization(enabled));
+            ui.add(appearance, smooth, MATCH, WRAP, 10);
+        }
         if (hasStartupAnimation()) {
             Switch intro = new Switch(this);
             intro.setText(R.string.startup_animation);

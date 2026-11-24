@@ -17,6 +17,11 @@
     <string name="installed_version">Installed version %1$s</string>
     <string name="startup_updates">Check for updates on startup</string>
     <string name="startup_animation">Startup animation</string>
+    <string name="visualization">Visualization</string>
+    <string name="spectrum">Spectrum</string>
+    <string name="wave">Wave</string>
+    <string name="visualization_off">Off</string>
+    <string name="smooth_visualization">Smooth visualization</string>
     <string name="player_intro_caption">Your music on the road</string>
     <string name="check_updates">Check for updates</string>
     <string name="checking">Checking for updates…</string>

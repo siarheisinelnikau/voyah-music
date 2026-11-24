@@ -95,6 +95,10 @@ public final class PlayerActivity extends MusicActivity {
     private ImageButton previous, play, next, shuffle, repeat;
     private Button receiveButton;
     private SeekBar seek;
+    private MusicVisualizer visualizer;
+    private FrameLayout stage;
+    private View emblem;
+    private boolean compactStage;
     private TrackAdapter adapter;
     private String query = "", highlighted = "";
     private PairQr lastQr;
@@ -115,6 +119,11 @@ public final class PlayerActivity extends MusicActivity {
 
     @Override
     protected boolean hasStartupAnimation() {
+        return true;
+    }
+
+    @Override
+    protected boolean hasVisualization() {
         return true;
     }
 
@@ -149,6 +158,7 @@ public final class PlayerActivity extends MusicActivity {
     @Override
     protected void onStop() {
         visible = false;
+        if (visualizer != null) visualizer.update(null, "off", false, false);
         getSystemService(ConnectivityManager.class).unregisterNetworkCallback(wifi);
         main.removeCallbacks(tick);
         model.observe(null, null);
@@ -242,11 +252,20 @@ public final class PlayerActivity extends MusicActivity {
         card.setBackground(ui.box(UiKit.PANEL, ui.selectedEdge, 22));
         TextView label = ui.text(getText(R.string.now_playing), 15, ui.accent, true);
         ui.center(card, label, WRAP, WRAP, 2);
+        compactStage = compact;
+        stage = new FrameLayout(this);
         if (!compact) {
             card.addView(new View(this), new LinearLayout.LayoutParams(1, 0, 1f));
             int art = getResources().getConfiguration().screenHeightDp >= 590 ? 126 : 82;
-            ui.center(card, ui.emblem(art), ui.dp(art), ui.dp(art), 8);
+            // While music plays, its sound takes the emblem's place, as in Voyah Radio.
+            emblem = ui.emblem(art);
+            stage.addView(emblem, new FrameLayout.LayoutParams(ui.dp(art), ui.dp(art), Gravity.CENTER));
+            ui.add(card, stage, MATCH, ui.dp(art), 8);
         }
+        visualizer = new MusicVisualizer(this, ui.accent);
+        FrameLayout.LayoutParams visualParams = new FrameLayout.LayoutParams(MATCH, MATCH);
+        visualParams.setMargins(ui.dp(8), ui.dp(4), ui.dp(8), ui.dp(4));
+        stage.addView(visualizer, visualParams);
         title = ui.text("", compact ? 21 : 29, UiKit.TEXT, true);
         title.setGravity(Gravity.CENTER);
         ui.truncate(title, compact ? 1 : 2);
@@ -256,6 +275,7 @@ public final class PlayerActivity extends MusicActivity {
         ui.truncate(artist, 1);
         ui.add(card, artist, MATCH, WRAP, 6);
         if (!compact) card.addView(new View(this), new LinearLayout.LayoutParams(1, 0, 1f));
+        else ui.add(card, stage, MATCH, ui.dp(52), 6);
 
         seek = new SeekBar(this);
         seek.setMax(1000);
@@ -476,6 +496,7 @@ public final class PlayerActivity extends MusicActivity {
         artist.setVisibility(details.isEmpty() ? View.GONE : View.VISIBLE);
         problem.setVisibility(state != null && state.failed() ? View.VISIBLE : View.GONE);
         boolean playing = state != null && state.wantsPlay();
+        renderStage(state);
         play.setImageDrawable(ui.glyph(playing ? UiKit.Icon.PAUSE : UiKit.Icon.PLAY, ui.onAccent, 26));
         play.setContentDescription(getText(playing ? R.string.pause : R.string.play));
         play.setTooltipText(play.getContentDescription());
@@ -493,6 +514,16 @@ public final class PlayerActivity extends MusicActivity {
         updatePosition();
         main.removeCallbacks(tick);
         if (state != null && state.playing()) main.postDelayed(tick, 500);
+    }
+
+    /** Shows the sound in place of the emblem while music plays; the compact layout shows it only then. */
+    private void renderStage(PlaybackService.State state) {
+        String mode = prefs.visualization();
+        boolean drawing = playback != null && state != null && state.playing() && !"off".equals(mode);
+        if (compactStage) stage.setVisibility(drawing ? View.VISIBLE : View.GONE);
+        else if (emblem != null) emblem.setVisibility(drawing ? View.INVISIBLE : View.VISIBLE);
+        visualizer.setVisibility(drawing ? View.VISIBLE : View.GONE);
+        visualizer.update(playback == null ? null : playback.meter(), mode, drawing, prefs.smoothVisualization());
     }
 
     private Track currentTrack(String id) {

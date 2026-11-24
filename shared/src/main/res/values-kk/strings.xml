@@ -17,6 +17,11 @@
     <string name="installed_version">Орнатылған нұсқа %1$s</string>
     <string name="startup_updates">Іске қосылғанда жаңартуларды тексеру</string>
     <string name="startup_animation">Іске қосу анимациясы</string>
+    <string name="visualization">Визуализация</string>
+    <string name="spectrum">Спектр</string>
+    <string name="wave">Толқын</string>
+    <string name="visualization_off">Өшіру</string>
+    <string name="smooth_visualization">Бірқалыпты визуализация</string>
     <string name="player_intro_caption">Жолдағы өз музыкаңыз</string>
     <string name="check_updates">Жаңартуларды тексеру</string>
     <string name="checking">Жаңартулар тексерілуде…</string>

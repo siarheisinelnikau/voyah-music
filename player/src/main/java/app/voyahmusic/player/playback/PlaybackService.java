@@ -50,6 +50,7 @@ public final class PlaybackService extends Service {
         savePosition();
         scheduleCheckpoint();
     };
+    private final AudioMeter meter = new AudioMeter();
     private ExoPlayer player;
     private MediaSession session;
     private PendingIntent open;
@@ -69,7 +70,7 @@ public final class PlaybackService extends Service {
     public void onCreate() {
         super.onCreate();
         resume = getSharedPreferences("playback", MODE_PRIVATE);
-        player = new ExoPlayer.Builder(this).build();
+        player = new ExoPlayer.Builder(this, new MeteringRenderersFactory(this, meter)).build();
         player.setAudioAttributes(new AudioAttributes.Builder().setUsage(C.USAGE_MEDIA)
                 .setContentType(C.AUDIO_CONTENT_TYPE_MUSIC).build(), true);
         player.setHandleAudioBecomingNoisy(true);
@@ -241,6 +242,9 @@ public final class PlaybackService extends Service {
         return new State(item == null ? "" : item.mediaId, wantsPlay, player.isPlaying(),
                 player.getShuffleModeEnabled(), player.getRepeatMode(), player.getPlayerError() != null);
     }
+
+    /** The decoded sound for the visualization; it measures only while a visualization draws. */
+    public AudioMeter meter() { return meter; }
 
     public void observe(Runnable listener) { listeners.add(listener); }
     public void removeObserver(Runnable listener) { listeners.remove(listener); }
