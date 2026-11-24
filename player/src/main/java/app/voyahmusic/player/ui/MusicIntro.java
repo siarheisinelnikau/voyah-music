@@ -5,6 +5,7 @@ import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.content.Intent;
 import android.content.pm.ApplicationInfo;
+import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Color;
@@ -51,10 +52,12 @@ import static app.voyahmusic.player.ui.IntroPacing.span;
  * from the record outward, the mark thumps and two rings leave the record.
  *
  * <p>The intro plays each time the player comes back on screen from another app or the home screen, and the player
- * itself never goes away. On a return the backdrop spreads over the player from the record like a wave while the
- * player steps back. After a cold start the backdrop covers the window from the first frame, matching the window
- * background, while the player lays itself out underneath. Every intro ends with the mark flying past the viewer as
- * the iris opens from the record and the player steps forward into place. A tap runs that ending at once.
+ * itself never goes away. On a return to a phone or tablet, where Android shows the player as it was left, the backdrop
+ * spreads over the player from the record like a wave while the player steps back. After a cold start, and on car head
+ * units, which show the plain window background on the way back instead, the backdrop covers the window from the first
+ * frame, matching that background, while the player lays itself out underneath. Every intro ends with the mark flying
+ * past the viewer as the iris opens from the record and the player steps forward into place. A tap runs that ending at
+ * once.
  */
 @SuppressLint("ViewConstructor") // Created in code with the activity's run settings.
 final class MusicIntro extends View {
@@ -111,6 +114,8 @@ final class MusicIntro extends View {
 
     private static final int STEADY_FRAMES = 6;
     private static final long SETTLE_LIMIT_NANOS = 450_000_000L;
+    /** Beyond the slowest pace the clock allows, the intro removes itself, so it can never stay over the app. */
+    private static final float WATCHDOG_SLACK_MS = 1_500f;
     private static final float CHARGE_DEPTH = .82f;
     /** How far the player steps back behind the backdrop, as a share of its size. */
     private static final float CONTENT_DEPTH = .08f;
@@ -235,6 +240,7 @@ final class MusicIntro extends View {
     private float introMillis;
     /** How far a tap has run the ending, 0..1. */
     private float dismissed;
+    private final Runnable watchdog = this::finish;
 
     /**
      * Called from the activity's {@code onStart}. Plays the intro when the player comes back on screen from another
@@ -251,8 +257,10 @@ final class MusicIntro extends View {
         View previous = decor.findViewWithTag(TAG);
         if (previous instanceof MusicIntro) ((MusicIntro) previous).finish();
         // A window that is already attached shows the player as it was left, from a snapshot or on its own; a new
-        // window starts from the plain window background, which the backdrop matches.
-        boolean veiled = held < 0f && decor.isAttachedToWindow() && !interrupted;
+        // window starts from the plain window background, which the backdrop matches. Car head units take no task
+        // snapshots and show that background on every return as well.
+        boolean veiled = held < 0f && decor.isAttachedToWindow() && !interrupted
+                && !activity.getPackageManager().hasSystemFeature(PackageManager.FEATURE_AUTOMOTIVE);
         interrupted = false;
         decor.addView(new MusicIntro(activity, Math.max(scale, .01f), held, veiled),
                 new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
@@ -371,8 +379,13 @@ final class MusicIntro extends View {
         float refresh = display == null ? 60f : display.getRefreshRate();
         frameNanos = (long) (1_000_000_000L / (refresh >= 20f ? refresh : 60f));
         settle = new IntroPacing.Settle(frameNanos, STEADY_FRAMES);
-        if (heldMillis >= 0f) introMillis = heldMillis;
-        else schedule();
+        if (heldMillis >= 0f) {
+            introMillis = heldMillis;
+        } else {
+            schedule();
+            float limit = SETTLE_LIMIT_NANOS / 1_000_000f + Timeline.END * 1.5f + Timeline.DISMISS;
+            postDelayed(watchdog, (long) (limit * durationScale + WATCHDOG_SLACK_MS));
+        }
     }
 
     @Override protected void onDetachedFromWindow() {
@@ -395,6 +408,8 @@ final class MusicIntro extends View {
     }
 
     @Override public boolean onTouchEvent(MotionEvent event) {
+        // Until a returning intro draws, the player shows through it, and touches reach the player as well.
+        if (veiled && clock == null && !dismissRequested && heldMillis < 0f) return false;
         if (event.getActionMasked() == MotionEvent.ACTION_DOWN) performClick();
         return true;
     }
@@ -443,6 +458,7 @@ final class MusicIntro extends View {
         if (finished) return;
         finished = true;
         Choreographer.getInstance().removeFrameCallback(tick);
+        removeCallbacks(watchdog);
         placeContent(0f);
         ViewParent parent = getParent();
         if (parent instanceof ViewGroup) ((ViewGroup) parent).removeView(this);

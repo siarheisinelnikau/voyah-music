@@ -57,6 +57,7 @@ public final class PlaybackService extends Service {
     private boolean started;
     private boolean foreground;
     private boolean syncing;
+    private OemMediaKeys wheelKeys;
 
     public final class LocalBinder extends Binder {
         public PlaybackService service() {
@@ -103,6 +104,21 @@ public final class PlaybackService extends Service {
         Context localized = MusicPreferences.localized(this);
         getSystemService(NotificationManager.class).createNotificationChannel(
                 new NotificationChannel(CHANNEL, localized.getString(R.string.now_playing), NotificationManager.IMPORTANCE_LOW));
+        wheelKeys = OemMediaKeys.attach(this, this::onWheelKey);
+    }
+
+    /** The firmware sends the steering wheel's media keys here while the player holds media audio focus. */
+    private void onWheelKey(int key) {
+        switch (key) {
+            case OemMediaKeys.NEXT -> next();
+            case OemMediaKeys.PREVIOUS -> previous();
+            case OemMediaKeys.PLAY_PAUSE -> toggle();
+            case OemMediaKeys.PLAY -> {
+                if (!state().wantsPlay()) play();
+            }
+            case OemMediaKeys.PAUSE -> player.pause();
+            default -> { }
+        }
     }
 
     @Override public IBinder onBind(Intent intent) { return binder; }
@@ -303,6 +319,7 @@ public final class PlaybackService extends Service {
 
     @Override
     public void onDestroy() {
+        if (wheelKeys != null) wheelKeys.detach();
         savePosition();
         main.removeCallbacks(checkpoint);
         listeners.clear();
