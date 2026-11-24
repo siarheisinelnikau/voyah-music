@@ -10,12 +10,14 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.media.MediaMetadata;
 import android.media.session.MediaSession;
+import android.media.session.MediaSessionManager;
 import android.media.session.PlaybackState;
 import android.net.Uri;
 import android.os.Binder;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
+import android.util.Log;
 
 import androidx.media3.common.AudioAttributes;
 import androidx.media3.common.C;
@@ -42,6 +44,7 @@ import java.util.concurrent.Executors;
 @UnstableApi
 public final class PlaybackService extends Service {
     public record State(String id, boolean wantsPlay, boolean playing, boolean shuffle, int repeat, boolean failed) {}
+    private static final String TAG = "VoyahMusic";
     private static final String CHANNEL = "music_playback";
     private static final int NOTIFICATION = 1;
     private static final String PREVIOUS = "previous";
@@ -104,8 +107,12 @@ public final class PlaybackService extends Service {
         session = new MediaSession(this, "Voyah Music");
         session.setSessionActivity(open);
         session.setCallback(new MediaSession.Callback() {
-            // A media widget can ask for playback while the player has never been opened in this process.
-            @Override public void onPlay() { prepareLibrary(PlaybackService.this::play); }
+            // A media widget that browsed the player (MusicBrowserService) may start playback while the player has
+            // never been opened in this process; other controllers act only on a loaded library, as before.
+            @Override public void onPlay() {
+                if (player.getMediaItemCount() > 0) play();
+                else if (fromBrowserClient()) prepareLibrary(PlaybackService.this::play);
+            }
             @Override public void onPause() { player.pause(); }
             @Override public void onSeekTo(long position) { seek(position); }
             @Override public void onSkipToNext() { next(); }
@@ -150,6 +157,12 @@ public final class PlaybackService extends Service {
         return session.getSessionToken();
     }
 
+    /** Only inside a session callback: whether the command comes from a media widget that browsed the player. */
+    private boolean fromBrowserClient() {
+        MediaSessionManager.RemoteUserInfo caller = session.getCurrentControllerInfo();
+        return caller != null && MusicBrowserService.isClient(caller.getPackageName(), caller.getUid());
+    }
+
     /**
      * Loads the library into the player when nothing gave it tracks yet (the player screen does that when it opens),
      * so a media widget shows the last track and can start playback with the player closed; then runs [then].
@@ -164,12 +177,20 @@ public final class PlaybackService extends Service {
         loading = true;
         MusicLibrary library = ((PlayerApp) getApplication()).library();
         storage.execute(() -> {
-            List<Track> tracks = library.snapshot().tracks();
+            List<Track> tracks;
+            try {
+                tracks = library.snapshot().tracks();
+            } catch (RuntimeException error) {
+                // A storage failure must not end the process: a connected widget would restart it again and again.
+                Log.w(TAG, "Library unavailable for a media widget", error);
+                tracks = List.of();
+            }
+            List<Track> loaded = tracks;
             main.post(() -> {
                 loading = false;
                 if (released) return;
                 // The player screen may have given the tracks in the meantime; it then keeps its own list.
-                if (player.getMediaItemCount() == 0) setTracks(tracks);
+                if (player.getMediaItemCount() == 0) setTracks(loaded);
                 List<Runnable> waiting = new ArrayList<>(pending);
                 pending.clear();
                 for (Runnable task : waiting) task.run();

@@ -13,15 +13,19 @@ import androidx.media3.common.util.UnstableApi;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Hands the player's media session to a media widget, such as the head unit's home screen media card (the launcher,
  * which Open Voyah Controls extends with a Voyah Music source). Only system apps may connect. On connection the player
- * loads the library, so the widget shows the last track and can start it with the player closed.
+ * loads the library, so the widget shows the last track; such a widget may start it with the player closed
+ * (see {@link #isClient}).
  */
 @UnstableApi
 public final class MusicBrowserService extends MediaBrowserService {
     private static final String ROOT = "voyah_music";
+    private static final Set<String> CLIENTS = ConcurrentHashMap.newKeySet();
     private boolean bound;
 
     private final ServiceConnection connection = new ServiceConnection() {
@@ -35,13 +39,21 @@ public final class MusicBrowserService extends MediaBrowserService {
         @Override public void onServiceDisconnected(ComponentName name) {}
     };
 
-    @Override public void onCreate() {
-        super.onCreate();
-        bound = bindService(new Intent(this, PlaybackService.class), connection, BIND_AUTO_CREATE);
+    /** Whether this caller connected as a media browser; such a widget may start playback in the background. */
+    static boolean isClient(String packageName, int uid) {
+        return packageName != null && CLIENTS.contains(key(packageName, uid));
+    }
+
+    private static String key(String packageName, int uid) {
+        return uid + "/" + packageName;
     }
 
     @Override public BrowserRoot onGetRoot(String clientPackageName, int clientUid, Bundle rootHints) {
-        return clientUid == Process.SYSTEM_UID ? new BrowserRoot(ROOT, null) : null;
+        if (clientUid != Process.SYSTEM_UID) return null;
+        CLIENTS.add(key(clientPackageName, clientUid));
+        // The player starts only for an accepted client; Android holds the connection until the token is set.
+        if (!bound) bound = bindService(new Intent(this, PlaybackService.class), connection, BIND_AUTO_CREATE);
+        return new BrowserRoot(ROOT, null);
     }
 
     @Override public void onLoadChildren(String parentId, Result<List<MediaBrowser.MediaItem>> result) {
