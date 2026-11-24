@@ -40,6 +40,7 @@ import static app.voyahmusic.shared.ui.UiKit.MATCH;
 import static app.voyahmusic.shared.ui.UiKit.WRAP;
 
 public final class TransferActivity extends MusicActivity {
+    private AlertDialog clashDialog;
     private static final int PICK_AUDIO = 612;
     private static final int SCAN_QR = 615;
     private static final int CAMERA = 616;
@@ -104,6 +105,7 @@ public final class TransferActivity extends MusicActivity {
 
     @Override
     protected void onDestroy() {
+        if (clashDialog != null) clashDialog.dismiss();
         if (!isChangingConfigurations()) model.close();
         super.onDestroy();
     }
@@ -381,7 +383,8 @@ public final class TransferActivity extends MusicActivity {
         ui.enabled(send, !busy && !screen.files().isEmpty() && screen.connection().state() == TransferViewModel.Link.CONNECTED);
         address.setEnabled(!busy);
         code.setEnabled(!busy);
-        cancel.setVisibility(sending || screen.state() == TransferViewModel.State.CONNECTING ? View.VISIBLE : View.GONE);
+        cancel.setVisibility(sending || screen.state() == TransferViewModel.State.CONNECTING
+                || screen.state() == TransferViewModel.State.CHECKING ? View.VISIBLE : View.GONE);
         boolean unknown = !sending || screen.current().size() <= 0;
         progress.setVisibility(busy ? View.VISIBLE : View.GONE);
         if (busy) {
@@ -396,6 +399,36 @@ public final class TransferActivity extends MusicActivity {
             default -> false;
         };
         status.setTextColor(failed ? UiKit.ERROR : screen.state() == TransferViewModel.State.DONE ? ui.accent : UiKit.MUTED);
+        if (screen.state() == TransferViewModel.State.CONFLICT) {
+            if (clashDialog == null) clashDialog = askAboutClashes(screen.clashes());
+        } else if (clashDialog != null) {
+            clashDialog.dismiss();
+            clashDialog = null;
+        }
+    }
+
+    /** Asks once for the whole batch what to do with files whose name is already taken in the car's folder. */
+    private AlertDialog askAboutClashes(List<String> names) {
+        StringBuilder list = new StringBuilder();
+        int shown = Math.min(names.size(), 5);
+        for (int i = 0; i < shown; i++) list.append(i == 0 ? "" : "\n").append(names.get(i));
+        if (names.size() > shown) list.append('\n').append(getString(R.string.clash_more, names.size() - shown));
+        return new AlertDialog.Builder(this).setTitle(R.string.clash_title).setMessage(list)
+                .setPositiveButton(R.string.clash_replace,
+                        (dialog, which) -> model.resolve(TransferViewModel.Clash.REPLACE))
+                .setNeutralButton(R.string.clash_keep_both,
+                        (dialog, which) -> model.resolve(TransferViewModel.Clash.KEEP_BOTH))
+                .setNegativeButton(R.string.clash_skip, (dialog, which) -> model.resolve(TransferViewModel.Clash.SKIP))
+                .setOnCancelListener(dialog -> model.abandon())
+                .show();
+    }
+
+    private String summary(TransferViewModel.Screen item) {
+        int added = item.completed() - item.duplicates() - item.replaced() - item.skipped();
+        StringBuilder text = new StringBuilder(getString(R.string.sent_summary, added, item.duplicates()));
+        if (item.replaced() > 0) text.append(" · ").append(getString(R.string.sent_replaced, item.replaced()));
+        if (item.skipped() > 0) text.append(" · ").append(getString(R.string.sent_skipped, item.skipped()));
+        return text.toString();
     }
 
     private void updateConnection(TransferViewModel.Screen screen) {
@@ -466,9 +499,11 @@ public final class TransferActivity extends MusicActivity {
             case READY -> "";
             case READING -> getString(R.string.reading_files);
             case CONNECTING -> getString(R.string.connecting);
+            case CHECKING -> getString(R.string.checking_files, item.completed() + 1, item.files().size());
+            case CONFLICT -> "";
             case SENDING -> getString(R.string.sending, item.completed() + 1, item.completed() + item.files().size(),
                     item.current().name());
-            case DONE -> getString(R.string.sent_summary, item.completed() - item.duplicates(), item.duplicates());
+            case DONE -> summary(item);
             case CANCELLED -> getString(R.string.cancelled);
             case NO_WIFI -> getString(R.string.phone_no_wifi);
             case ADDRESS -> getString(R.string.bad_address);

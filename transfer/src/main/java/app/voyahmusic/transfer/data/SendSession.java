@@ -3,7 +3,9 @@ package app.voyahmusic.transfer.data;
 import android.content.ContentResolver;
 
 import app.voyahmusic.shared.lan.MusicWire;
+import app.voyahmusic.shared.lan.MusicWire.Candidate;
 import app.voyahmusic.shared.lan.MusicWire.Folder;
+import app.voyahmusic.shared.lan.MusicWire.Presence;
 import app.voyahmusic.shared.lan.MusicWire.Status;
 import app.voyahmusic.shared.lan.LanTls;
 import app.voyahmusic.shared.lan.WifiLink;
@@ -19,6 +21,8 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.security.GeneralSecurityException;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -98,7 +102,50 @@ public final class SendSession {
         }
     }
 
-    public Status send(ContentResolver resolver, SelectedFile file, long folder, LongConsumer progress) throws IOException {
+    /**
+     * Asks the car which of the files it already has. Returns null when the car cannot tell, for example when its
+     * Voyah Music predates the question and closes the connection; every file then counts as new.
+     */
+    public List<Presence> probe(long folder, List<Candidate> files) throws IOException {
+        try (Socket socket = connect()) {
+            socket.setSoTimeout(15_000);
+            DataOutputStream out = new DataOutputStream(new BufferedOutputStream(socket.getOutputStream()));
+            DataInputStream in = new DataInputStream(new BufferedInputStream(socket.getInputStream()));
+            MusicWire.request(out, MusicWire.PROBE, token);
+            MusicWire.writeProbe(out, folder, files);
+            if (Status.read(in) != Status.OK) return null;
+            return MusicWire.readPresence(in, files.size());
+        } catch (IOException e) {
+            if (cancelled) throw new InterruptedIOException();
+            return null;
+        } finally {
+            clear();
+        }
+    }
+
+    /** The SHA-256 of the file's content, which the car uses as the track's id. */
+    public String sha256(ContentResolver resolver, SelectedFile file) throws IOException {
+        MessageDigest digest;
+        try {
+            digest = MessageDigest.getInstance("SHA-256");
+        } catch (NoSuchAlgorithmException e) {
+            throw new AssertionError(e);
+        }
+        try (InputStream source = resolver.openInputStream(file.uri())) {
+            if (source == null) throw new IOException("The file cannot be read");
+            byte[] buffer = new byte[MusicWire.CHUNK];
+            for (int count; (count = source.read(buffer)) != -1; ) {
+                if (cancelled) throw new InterruptedIOException();
+                digest.update(buffer, 0, count);
+            }
+        } catch (SecurityException e) {
+            throw new IOException(e);
+        }
+        return MusicWire.hex(digest.digest());
+    }
+
+    public Status send(ContentResolver resolver, SelectedFile file, long folder, boolean replace, LongConsumer progress)
+            throws IOException {
         if (!MusicWire.validName(file.name()) || file.size() == 0) return Status.FORMAT;
         if (file.size() > MusicWire.MAX_BYTES) return Status.TOO_LARGE;
 
@@ -107,7 +154,7 @@ public final class SendSession {
             try (Socket socket = connect()) {
                 DataOutputStream out = new DataOutputStream(new BufferedOutputStream(socket.getOutputStream()));
                 DataInputStream in = new DataInputStream(new BufferedInputStream(socket.getInputStream()));
-                MusicWire.request(out, MusicWire.UPLOAD, token);
+                MusicWire.request(out, replace ? MusicWire.REPLACE : MusicWire.UPLOAD, token);
                 out.writeLong(folder);
                 out.writeUTF(file.name());
                 out.writeLong(file.size() < 0 ? -1 : file.size());

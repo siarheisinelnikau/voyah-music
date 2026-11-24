@@ -87,6 +87,14 @@
     <string name="connecting">Voyah Music қолданбасына қосылуда…</string>
     <string name="sending">Жіберілуде %1$d / %2$d · %3$s</string>
     <string name="sent_summary">Қосылды: %1$d · Көлікте бар: %2$d</string>
+    <string name="checking_files">Файлдар көлікпен салыстырылуда: %1$d / %2$d…</string>
+    <string name="clash_title">Көлікте осындай атаулы файлдар бар</string>
+    <string name="clash_more">…және тағы %1$d</string>
+    <string name="clash_replace">Ауыстыру</string>
+    <string name="clash_keep_both">Екеуін де қалдыру</string>
+    <string name="clash_skip">Өткізу</string>
+    <string name="sent_replaced">Ауыстырылды: %1$d</string>
+    <string name="sent_skipped">Өткізілді: %1$d</string>
     <string name="cancelled">Жіберу тоқтатылды. Қалған файлдарды қайта жіберуге болады.</string>
     <string name="bad_address">Voyah Music көрсеткен IP мекенжайын енгізіңіз.</string>
     <string name="bad_code">Voyah Music көрсеткен 8 цифрды енгізіңіз.</string>

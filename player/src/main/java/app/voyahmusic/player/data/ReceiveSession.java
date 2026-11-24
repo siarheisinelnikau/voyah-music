@@ -130,6 +130,18 @@ public final class ReceiveSession implements AutoCloseable {
             out.flush();
             return;
         }
+        if (command == MusicWire.PROBE) {
+            socket.setSoTimeout(15_000);
+            MusicWire.ProbeRequest probe = MusicWire.readProbe(in);
+            if (!library.hasFolder(probe.folder())) {
+                Status.FOLDER.write(out);
+                return;
+            }
+            List<MusicWire.Presence> answers = library.presence(probe.folder(), probe.files());
+            Status.OK.write(out);
+            MusicWire.writePresence(out, answers);
+            return;
+        }
         socket.setSoTimeout(20_000);
         long folder = in.readLong();
         String name = in.readUTF();
@@ -143,7 +155,7 @@ public final class ReceiveSession implements AutoCloseable {
         } else if (!library.hasSpace(Math.max(0, declared))) {
             Status.STORAGE.write(out);
         } else {
-            receive(in, out, name, declared, folder, token);
+            receive(in, out, name, declared, folder, token, command == MusicWire.REPLACE);
         }
     }
 
@@ -193,8 +205,8 @@ public final class ReceiveSession implements AutoCloseable {
         }
     }
 
-    private void receive(DataInputStream in, DataOutputStream out, String name, long declared, long folder, String token)
-            throws IOException {
+    private void receive(DataInputStream in, DataOutputStream out, String name, long declared, long folder,
+                         String token, boolean replace) throws IOException {
         File staging;
         try {
             staging = library.staging();
@@ -221,8 +233,14 @@ public final class ReceiveSession implements AutoCloseable {
                 } else {
                     try {
                         synchronized (this) {
-                            result = closed || !phones.knows(token) ? Status.EXPIRED
-                                    : library.publish(staging, MusicWire.hex(digest.digest()), name, folder);
+                            if (closed || !phones.knows(token)) {
+                                result = Status.EXPIRED;
+                            } else {
+                                String id = MusicWire.hex(digest.digest());
+                                result = library.publish(staging, id, name, folder);
+                                // The old track goes only once its replacement is safely in the library.
+                                if (result == Status.OK && replace) library.removeNamesakes(id, name, folder);
+                            }
                         }
                         if (result == Status.OK) received.accept(name);
                     } catch (IOException e) {

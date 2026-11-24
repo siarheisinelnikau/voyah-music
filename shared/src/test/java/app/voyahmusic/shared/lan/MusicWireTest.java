@@ -7,6 +7,8 @@ import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
+import java.util.Arrays;
+import java.util.Collections;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -61,5 +63,49 @@ public class MusicWireTest {
         assertFalse(MusicWire.validFolder(".."));
         assertFalse(MusicWire.validFolder("root/album"));
         assertFalse(MusicWire.validFolder("   "));
+    }
+
+    @Test
+    public void probesAskAboutCandidatesAndReadOneAnswerEach() throws IOException {
+        String hash = "ab".repeat(32);
+        ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+        DataOutputStream out = new DataOutputStream(bytes);
+        MusicWire.request(out, MusicWire.PROBE, "token");
+        MusicWire.writeProbe(out, 7, Collections.singletonList(new MusicWire.Candidate("Әндер.mp3", hash)));
+        DataInputStream in = new DataInputStream(new ByteArrayInputStream(bytes.toByteArray()));
+        assertEquals(MusicWire.PROBE, MusicWire.command(in));
+        assertEquals("token", in.readUTF());
+        MusicWire.ProbeRequest request = MusicWire.readProbe(in);
+        assertEquals(7, request.folder());
+        assertEquals(Collections.singletonList(new MusicWire.Candidate("Әндер.mp3", hash)), request.files());
+
+        ByteArrayOutputStream answer = new ByteArrayOutputStream();
+        MusicWire.writePresence(new DataOutputStream(answer),
+                Arrays.asList(MusicWire.Presence.NEW, MusicWire.Presence.SAME, MusicWire.Presence.NAME));
+        assertEquals(Arrays.asList(MusicWire.Presence.NEW, MusicWire.Presence.SAME, MusicWire.Presence.NAME),
+                MusicWire.readPresence(new DataInputStream(new ByteArrayInputStream(answer.toByteArray())), 3));
+    }
+
+    @Test
+    public void replacementsAreUploadsTheCarAccepts() throws IOException {
+        ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+        MusicWire.request(new DataOutputStream(bytes), MusicWire.REPLACE, "token");
+        assertEquals(MusicWire.REPLACE,
+                MusicWire.command(new DataInputStream(new ByteArrayInputStream(bytes.toByteArray()))));
+    }
+
+    @Test(expected = IOException.class)
+    public void probesRefuseEntriesThatAreNotTrackFiles() throws IOException {
+        ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+        MusicWire.writeProbe(new DataOutputStream(bytes), 0,
+                Collections.singletonList(new MusicWire.Candidate("../escape.mp3", "ab".repeat(32))));
+        MusicWire.readProbe(new DataInputStream(new ByteArrayInputStream(bytes.toByteArray())));
+    }
+
+    @Test(expected = IOException.class)
+    public void answersMustCoverEveryCandidate() throws IOException {
+        ByteArrayOutputStream answer = new ByteArrayOutputStream();
+        MusicWire.writePresence(new DataOutputStream(answer), Collections.singletonList(MusicWire.Presence.NEW));
+        MusicWire.readPresence(new DataInputStream(new ByteArrayInputStream(answer.toByteArray())), 2);
     }
 }

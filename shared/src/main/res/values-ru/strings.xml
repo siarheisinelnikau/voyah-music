@@ -87,6 +87,14 @@
     <string name="connecting">Подключаемся к Voyah Music…</string>
     <string name="sending">Отправляем %1$d из %2$d · %3$s</string>
     <string name="sent_summary">Добавлено: %1$d · Уже в машине: %2$d</string>
+    <string name="checking_files">Сверяю файлы с машиной: %1$d из %2$d…</string>
+    <string name="clash_title">В машине уже есть файлы с такими именами</string>
+    <string name="clash_more">…и ещё %1$d</string>
+    <string name="clash_replace">Заменить</string>
+    <string name="clash_keep_both">Оставить оба</string>
+    <string name="clash_skip">Пропустить</string>
+    <string name="sent_replaced">Заменено: %1$d</string>
+    <string name="sent_skipped">Пропущено: %1$d</string>
     <string name="cancelled">Отправка отменена. Оставшиеся файлы можно отправить снова.</string>
     <string name="bad_address">Введите IP-адрес, показанный в Voyah Music.</string>
     <string name="bad_code">Введите 8 цифр, показанных в Voyah Music.</string>

@@ -87,6 +87,14 @@
     <string name="connecting">Connecting to Voyah Music…</string>
     <string name="sending">Sending %1$d of %2$d · %3$s</string>
     <string name="sent_summary">Added: %1$d · Already in the car: %2$d</string>
+    <string name="checking_files">Checking files with the car: %1$d of %2$d…</string>
+    <string name="clash_title">The car already has files with these names</string>
+    <string name="clash_more">…and %1$d more</string>
+    <string name="clash_replace">Replace</string>
+    <string name="clash_keep_both">Keep both</string>
+    <string name="clash_skip">Skip</string>
+    <string name="sent_replaced">Replaced: %1$d</string>
+    <string name="sent_skipped">Skipped: %1$d</string>
     <string name="cancelled">Transfer cancelled. You can send the remaining files again.</string>
     <string name="bad_address">Enter the IP address displayed in Voyah Music.</string>
     <string name="bad_code">Enter the 8 digits displayed in Voyah Music.</string>

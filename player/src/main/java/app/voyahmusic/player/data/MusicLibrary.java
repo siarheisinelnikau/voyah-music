@@ -15,8 +15,11 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 
 public final class MusicLibrary {
     public record Snapshot(List<Track> tracks, List<MusicWire.Folder> folders, Map<String, Long> locations) {
@@ -63,6 +66,49 @@ public final class MusicLibrary {
             throw new IOException("Could not publish track");
         }
         return MusicWire.Status.OK;
+    }
+
+    /**
+     * Tells for each candidate whether the library already has its audio anywhere, or other audio under the same
+     * file name in {@code folder}. Names compare without case, as people read them.
+     */
+    public synchronized List<MusicWire.Presence> presence(long folder, List<MusicWire.Candidate> candidates) {
+        Set<String> taken = new HashSet<>();
+        Map<String, Long> locations = folders.locations();
+        for (File track : trackFolders()) {
+            if (locations.getOrDefault(track.getName(), 0L) != folder) continue;
+            File[] files = track.listFiles(file -> file.isFile() && MusicWire.validName(file.getName()));
+            if (files == null) continue;
+            for (File file : files) taken.add(file.getName().toLowerCase(Locale.ROOT));
+        }
+        List<MusicWire.Presence> answers = new ArrayList<>(candidates.size());
+        for (MusicWire.Candidate candidate : candidates) {
+            File[] stored = new File(directory, candidate.sha256()).listFiles();
+            if (stored != null && stored.length > 0) answers.add(MusicWire.Presence.SAME);
+            else if (taken.contains(candidate.name().toLowerCase(Locale.ROOT))) answers.add(MusicWire.Presence.NAME);
+            else answers.add(MusicWire.Presence.NEW);
+        }
+        return answers;
+    }
+
+    /** After a replacement, removes the folder's other tracks whose file has that name, keeping {@code keep}. */
+    public synchronized void removeNamesakes(String keep, String name, long folder) {
+        Map<String, Long> locations = folders.locations();
+        for (File track : trackFolders()) {
+            String id = track.getName();
+            if (id.equals(keep) || locations.getOrDefault(id, 0L) != folder) continue;
+            File[] files = track.listFiles(file -> file.isFile() && file.getName().equalsIgnoreCase(name));
+            if (files == null || files.length == 0) continue;
+            for (File file : files) file.delete();
+            folders.move(id, 0);
+            metadata.remove(id);
+            discard(track);
+        }
+    }
+
+    private File[] trackFolders() {
+        File[] tracks = directory.listFiles(file -> file.isDirectory() && file.getName().matches("[a-f0-9]{64}"));
+        return tracks == null ? new File[0] : tracks;
     }
 
     public synchronized boolean remove(Track track) {

@@ -5,9 +5,11 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.Inet4Address;
 import java.net.InetAddress;
-import java.util.Locale;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
+import java.util.Locale;
 
 public final class MusicWire {
     private static final int VERSION = 0x564D0002;
@@ -20,9 +22,43 @@ public final class MusicWire {
     public static final int CHECK = 1;
     public static final int UPLOAD = 2;
     public static final int PAIR = 3;
+    /** Asks which of the files the phone is about to send the car already has. Older cars close the connection. */
+    public static final int PROBE = 4;
+    /** An upload that takes the place of the destination folder's other tracks with the same file name. */
+    public static final int REPLACE = 5;
     public static final int MAX_FOLDERS = 256;
+    /** The most files one probe asks about. */
+    public static final int MAX_PROBE = 1000;
 
     public record Folder(long id, String name) {}
+
+    /** A file the phone is about to send: its name and the SHA-256 of its content, which becomes the track's id. */
+    public record Candidate(String name, String sha256) {}
+
+    public record ProbeRequest(long folder, List<Candidate> files) {}
+
+    /** What the car already holds for a candidate. */
+    public enum Presence {
+        /** Nothing: the file is new to the car. */
+        NEW(0),
+        /** The same audio is already in the library, in any folder, so sending it again adds nothing. */
+        SAME(1),
+        /** Other audio with the same file name is already in the destination folder. */
+        NAME(2);
+
+        private final int value;
+
+        Presence(int value) {
+            this.value = value;
+        }
+
+        static Presence of(int value) throws IOException {
+            for (Presence presence : values()) {
+                if (presence.value == value) return presence;
+            }
+            throw new IOException("Unknown presence");
+        }
+    }
 
     public enum Status {
         OK(1), DUPLICATE(2), CODE(3), FORMAT(4), TOO_LARGE(5), STORAGE(6), IO(7), EXPIRED(8),
@@ -59,8 +95,50 @@ public final class MusicWire {
     public static int command(DataInputStream in) throws IOException {
         if (in.readInt() != VERSION) throw new IOException("Unsupported transfer protocol");
         int command = in.readUnsignedByte();
-        if (command != CHECK && command != UPLOAD && command != PAIR) throw new IOException("Unknown transfer command");
+        if (command != CHECK && command != UPLOAD && command != PAIR && command != PROBE && command != REPLACE) {
+            throw new IOException("Unknown transfer command");
+        }
         return command;
+    }
+
+    public static void writeProbe(DataOutputStream out, long folder, List<Candidate> files) throws IOException {
+        if (files.size() > MAX_PROBE) throw new IOException("Too many files to probe");
+        out.writeLong(folder);
+        out.writeInt(files.size());
+        for (Candidate file : files) {
+            out.writeUTF(file.name());
+            out.writeUTF(file.sha256());
+        }
+        out.flush();
+    }
+
+    public static ProbeRequest readProbe(DataInputStream in) throws IOException {
+        long folder = in.readLong();
+        int count = in.readInt();
+        if (count < 0 || count > MAX_PROBE) throw new IOException("Invalid probe size");
+        List<Candidate> files = new ArrayList<>(count);
+        for (int i = 0; i < count; i++) {
+            String name = in.readUTF();
+            String sha256 = in.readUTF();
+            if (!validName(name) || !fingerprint(sha256)) throw new IOException("Invalid probe entry");
+            files.add(new Candidate(name, sha256));
+        }
+        return new ProbeRequest(folder, Collections.unmodifiableList(files));
+    }
+
+    public static void writePresence(DataOutputStream out, List<Presence> answers) throws IOException {
+        out.writeInt(answers.size());
+        for (Presence answer : answers) out.writeByte(answer.value);
+        out.flush();
+    }
+
+    /** Reads one answer for each of the {@code expected} candidates, in the order they were asked about. */
+    public static List<Presence> readPresence(DataInputStream in, int expected) throws IOException {
+        int count = in.readInt();
+        if (count != expected) throw new IOException("The probe answer does not match the request");
+        List<Presence> answers = new ArrayList<>(count);
+        for (int i = 0; i < count; i++) answers.add(Presence.of(in.readUnsignedByte()));
+        return Collections.unmodifiableList(answers);
     }
 
     public static boolean validFolder(String name) {
