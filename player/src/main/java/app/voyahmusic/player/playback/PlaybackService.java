@@ -25,14 +25,19 @@ import androidx.media3.common.Player;
 import androidx.media3.common.util.UnstableApi;
 import androidx.media3.exoplayer.ExoPlayer;
 
+import app.voyahmusic.player.PlayerApp;
+import app.voyahmusic.player.data.MusicLibrary;
 import app.voyahmusic.player.domain.Track;
 import app.voyahmusic.player.ui.PlayerActivity;
 import app.voyahmusic.shared.R;
 import app.voyahmusic.shared.data.MusicPreferences;
 
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 @UnstableApi
 public final class PlaybackService extends Service {
@@ -45,6 +50,8 @@ public final class PlaybackService extends Service {
 
     private final LocalBinder binder = new LocalBinder();
     private final Handler main = new Handler(Looper.getMainLooper());
+    private final ExecutorService storage = Executors.newSingleThreadExecutor();
+    private final List<Runnable> pending = new ArrayList<>();
     private final Set<Runnable> listeners = new HashSet<>();
     private final Runnable checkpoint = () -> {
         savePosition();
@@ -59,6 +66,8 @@ public final class PlaybackService extends Service {
     private boolean foreground;
     private boolean syncing;
     private OemMediaKeys wheelKeys;
+    private boolean loading;
+    private boolean released;
 
     public final class LocalBinder extends Binder {
         public PlaybackService service() {
@@ -95,7 +104,8 @@ public final class PlaybackService extends Service {
         session = new MediaSession(this, "Voyah Music");
         session.setSessionActivity(open);
         session.setCallback(new MediaSession.Callback() {
-            @Override public void onPlay() { play(); }
+            // A media widget can ask for playback while the player has never been opened in this process.
+            @Override public void onPlay() { prepareLibrary(PlaybackService.this::play); }
             @Override public void onPause() { player.pause(); }
             @Override public void onSeekTo(long position) { seek(position); }
             @Override public void onSkipToNext() { next(); }
@@ -133,6 +143,38 @@ public final class PlaybackService extends Service {
         if (NEXT.equals(action)) next();
         publish(false);
         return START_NOT_STICKY;
+    }
+
+    /** The session's token, for media browsers (MusicBrowserService). */
+    public MediaSession.Token sessionToken() {
+        return session.getSessionToken();
+    }
+
+    /**
+     * Loads the library into the player when nothing gave it tracks yet (the player screen does that when it opens),
+     * so a media widget shows the last track and can start playback with the player closed; then runs [then].
+     */
+    public void prepareLibrary(Runnable then) {
+        if (player.getMediaItemCount() > 0) {
+            then.run();
+            return;
+        }
+        pending.add(then);
+        if (loading) return;
+        loading = true;
+        MusicLibrary library = ((PlayerApp) getApplication()).library();
+        storage.execute(() -> {
+            List<Track> tracks = library.snapshot().tracks();
+            main.post(() -> {
+                loading = false;
+                if (released) return;
+                // The player screen may have given the tracks in the meantime; it then keeps its own list.
+                if (player.getMediaItemCount() == 0) setTracks(tracks);
+                List<Runnable> waiting = new ArrayList<>(pending);
+                pending.clear();
+                for (Runnable task : waiting) task.run();
+            });
+        });
     }
 
     public void setTracks(List<Track> tracks) {
@@ -320,6 +362,9 @@ public final class PlaybackService extends Service {
     @Override
     public void onDestroy() {
         if (wheelKeys != null) wheelKeys.detach();
+        released = true;
+        storage.shutdownNow();
+        pending.clear();
         savePosition();
         main.removeCallbacks(checkpoint);
         listeners.clear();
