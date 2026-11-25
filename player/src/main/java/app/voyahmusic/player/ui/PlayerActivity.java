@@ -1,5 +1,8 @@
 package app.voyahmusic.player.ui;
 
+import android.animation.Animator;
+import android.animation.AnimatorListenerAdapter;
+import android.animation.ValueAnimator;
 import android.app.AlertDialog;
 import android.content.ComponentName;
 import android.content.Intent;
@@ -7,6 +10,7 @@ import android.content.ServiceConnection;
 import android.content.res.ColorStateList;
 import android.graphics.Bitmap;
 import android.graphics.Typeface;
+import android.graphics.drawable.RippleDrawable;
 import android.net.ConnectivityManager;
 import android.net.Network;
 import android.net.NetworkCapabilities;
@@ -23,6 +27,10 @@ import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.WindowManager;
+import android.view.animation.AccelerateInterpolator;
+import android.view.animation.DecelerateInterpolator;
+import android.view.inputmethod.EditorInfo;
+import android.view.inputmethod.InputMethodManager;
 import android.widget.AbsListView;
 import android.widget.BaseAdapter;
 import android.widget.Button;
@@ -65,6 +73,8 @@ import static app.voyahmusic.shared.ui.UiKit.WRAP;
 
 @UnstableApi
 public final class PlayerActivity extends MusicActivity {
+    /** How long the header's search button takes to open into the field or close back; Voyah Radio uses the same. */
+    private static final long SEARCH_MILLIS = 250;
     private final Handler main = new Handler(Looper.getMainLooper());
     private final Runnable playbackChanged = this::renderPlayback;
     private final Runnable tick = this::tick;
@@ -105,6 +115,12 @@ public final class PlayerActivity extends MusicActivity {
     private boolean compactStage;
     private TrackAdapter adapter;
     private ListView list;
+    private LinearLayout mainRoot;
+    private FrameLayout searchBox;
+    private EditText searchField;
+    private ImageButton searchClose;
+    private ValueAnimator searchMotion;
+    private boolean searchOpen;
     private boolean followOnOpen, listTouched, listScrolling, ownScroll;
     private String query = "", highlighted = "", followedQuery = "";
     private PairQr lastQr;
@@ -195,12 +211,15 @@ public final class PlayerActivity extends MusicActivity {
     @Override
     protected void openSettings() {
         main.removeCallbacks(tick);
+        hideKeyboard();
         super.openSettings();
     }
 
     @Override
     public void onBackPressed() {
-        if (receiving) {
+        if (!settings && !receiving && searchOpen) {
+            closeSearch(true);
+        } else if (receiving) {
             receiving = false;
             model.setPairingVisible(false);
             showMain();
@@ -213,6 +232,7 @@ public final class PlayerActivity extends MusicActivity {
 
     private void openReceiver() {
         main.removeCallbacks(tick);
+        hideKeyboard();
         receiving = true;
         showReceiver();
         model.setPairingVisible(true);
@@ -220,7 +240,9 @@ public final class PlayerActivity extends MusicActivity {
 
     @Override
     protected void showMain() {
+        hideKeyboard();
         LinearLayout root = page();
+        mainRoot = root;
         LinearLayout header = heading(getString(R.string.player_name), false);
         settingsButton(header);
         ui.add(root, header, MATCH, WRAP, 0);
@@ -254,6 +276,8 @@ public final class PlayerActivity extends MusicActivity {
         followedQuery = query;
         filter();
         renderPlayback();
+        // A search kept from before, such as one left open for Settings, comes back open without the keyboard.
+        if (!query.isEmpty()) searchBox.post(() -> openSearch(false, false));
     }
 
     private LinearLayout playerCard(boolean compact, boolean narrow) {
@@ -357,6 +381,8 @@ public final class PlayerActivity extends MusicActivity {
         ui.truncate(libraryTitle, 1);
         header.addView(libraryTitle, ui.weighted());
         ui.gap(header, 6);
+        header.addView(searchBox(), new LinearLayout.LayoutParams(ui.dp(48), ui.dp(48)));
+        ui.gap(header, 8);
         sortButton = ui.iconButton(UiKit.Icon.SORT, getText(R.string.sort_tracks), false, this::chooseOrder);
         header.addView(sortButton, ui.dp(48), ui.dp(48));
         ui.gap(header, 8);
@@ -368,34 +394,9 @@ public final class PlayerActivity extends MusicActivity {
         receiveButton = ui.button(getText(R.string.receive), false, this::openReceiver);
         header.addView(receiveButton, WRAP, WRAP);
         ui.add(library, header, MATCH, WRAP, 0);
-        LinearLayout search = ui.row();
-        search.setBackground(ui.box(UiKit.SURFACE, ui.edge, 13));
-        search.setPadding(ui.dp(11), 0, ui.dp(12), 0);
-        search.addView(ui.mark(UiKit.Icon.SEARCH, 19), ui.dp(24), ui.dp(24));
-        ui.gap(search, 8);
-        EditText searchField = new EditText(this);
-        searchField.setTextColor(UiKit.TEXT);
-        searchField.setTextSize(16);
-        searchField.setHintTextColor(UiKit.MUTED);
-        searchField.setHint(R.string.search_library);
-        searchField.setSingleLine();
-        searchField.setBackgroundColor(android.graphics.Color.TRANSPARENT);
-        searchField.setPadding(0, ui.dp(8), 0, ui.dp(8));
-        searchField.setText(query);
-        searchField.addTextChangedListener(new TextWatcher() {
-            @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
-            @Override public void onTextChanged(CharSequence s, int start, int before, int count) {
-                query = s.toString();
-                filter();
-            }
-            @Override public void afterTextChanged(Editable s) {}
-        });
-        search.addView(searchField, new LinearLayout.LayoutParams(0, MATCH, 1f));
-        ui.add(library, search, MATCH, ui.dp(48), 10);
-
         FrameLayout body = new FrameLayout(this);
         LinearLayout.LayoutParams listSpace = new LinearLayout.LayoutParams(MATCH, 0, 1f);
-        listSpace.topMargin = ui.dp(8);
+        listSpace.topMargin = ui.dp(10);
         library.addView(body, listSpace);
         list = new ListView(this) {
             @Override
@@ -432,6 +433,171 @@ public final class PlayerActivity extends MusicActivity {
         body.addView(empty, new FrameLayout.LayoutParams(MATCH, WRAP, Gravity.CENTER));
         list.setEmptyView(empty);
         return library;
+    }
+
+    /**
+     * The search button of the library header. A tap opens it into the search field, which grows leftward from the
+     * button over the title while the hint and the close button fade in, and closes it back the same way.
+     */
+    private FrameLayout searchBox() {
+        searchOpen = false;
+        ValueAnimator previous = searchMotion;
+        searchMotion = null;
+        if (previous != null) previous.cancel();
+        searchBox = new FrameLayout(this);
+        searchBox.setBackground(ui.actionBackground(UiKit.SURFACE, ui.edge, 14));
+        searchBox.setContentDescription(getText(R.string.search_open));
+        searchBox.setTooltipText(getText(R.string.search_open));
+        searchBox.setOnClickListener(view -> openSearch(true, true));
+        ImageView mark = new ImageView(this);
+        mark.setImageDrawable(ui.glyph(UiKit.Icon.SEARCH, UiKit.TEXT, 22));
+        mark.setScaleType(ImageView.ScaleType.CENTER);
+        searchBox.addView(mark, new FrameLayout.LayoutParams(ui.dp(48), ui.dp(48), Gravity.START | Gravity.CENTER_VERTICAL));
+        searchField = new EditText(this);
+        searchField.setTextColor(UiKit.TEXT);
+        searchField.setTextSize(16);
+        searchField.setHintTextColor(UiKit.MUTED);
+        searchField.setHint(R.string.search_library);
+        searchField.setSingleLine();
+        searchField.setImeOptions(EditorInfo.IME_ACTION_SEARCH | EditorInfo.IME_FLAG_NO_EXTRACT_UI);
+        searchField.setBackgroundColor(android.graphics.Color.TRANSPARENT);
+        searchField.setPadding(0, ui.dp(8), 0, ui.dp(8));
+        searchField.setText(query);
+        searchField.addTextChangedListener(new TextWatcher() {
+            @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+            @Override public void onTextChanged(CharSequence s, int start, int before, int count) {
+                query = s.toString();
+                filter();
+            }
+            @Override public void afterTextChanged(Editable s) {}
+        });
+        searchField.setOnEditorActionListener((view, action, event) -> {
+            if (action != EditorInfo.IME_ACTION_SEARCH) return false;
+            leaveSearch();
+            return true;
+        });
+        searchField.setOnFocusChangeListener((view, focused) -> {
+            if (!focused && query.trim().isEmpty()) closeSearch(false);
+        });
+        // The field keeps the open width while the box grows over it, because Android takes the focus away from a
+        // field that is laid out with no width.
+        FrameLayout.LayoutParams field = new FrameLayout.LayoutParams(ui.dp(48), MATCH, Gravity.START | Gravity.CENTER_VERTICAL);
+        field.leftMargin = ui.dp(44);
+        searchBox.addView(searchField, field);
+        searchClose = new ImageButton(this);
+        searchClose.setImageDrawable(ui.glyph(UiKit.Icon.CLOSE, UiKit.TEXT, 20));
+        searchClose.setScaleType(ImageView.ScaleType.CENTER);
+        searchClose.setBackground(new RippleDrawable(ColorStateList.valueOf(0x30ffffff), null, ui.box(0xffffffff, 0, 12)));
+        searchClose.setContentDescription(getText(R.string.search_close));
+        searchClose.setTooltipText(getText(R.string.search_close));
+        searchClose.setOnClickListener(view -> closeSearch(true));
+        FrameLayout.LayoutParams close = new FrameLayout.LayoutParams(ui.dp(40), ui.dp(40), Gravity.END | Gravity.CENTER_VERTICAL);
+        close.rightMargin = ui.dp(4);
+        searchBox.addView(searchClose, close);
+        setSearchParts(0f);
+        searchField.setVisibility(View.GONE);
+        searchClose.setVisibility(View.GONE);
+        return searchBox;
+    }
+
+    private void openSearch(boolean animate, boolean focus) {
+        if (searchOpen || searchBox == null || !searchBox.isAttachedToWindow()) return;
+        searchOpen = true;
+        searchBox.setClickable(false);
+        searchBox.setContentDescription(null);
+        searchField.setVisibility(View.VISIBLE);
+        searchClose.setVisibility(View.VISIBLE);
+        int text = (int) Math.ceil(libraryTitle.getPaint().measureText(libraryTitle.getText().toString()));
+        int width = SearchWidth.open(ui.dp(48), libraryTitle.getWidth(), text, ui.dp(12), ui.dp(220), ui.dp(360));
+        ViewGroup.LayoutParams fieldSize = searchField.getLayoutParams();
+        fieldSize.width = Math.max(1, width - ui.dp(44) - ui.dp(48));
+        searchField.setLayoutParams(fieldSize);
+        resizeSearch(width, animate, true);
+        if (!focus) return;
+        searchField.requestFocus();
+        searchField.setSelection(searchField.length());
+        EditText field = searchField;
+        field.post(() -> getSystemService(InputMethodManager.class).showSoftInput(field, InputMethodManager.SHOW_IMPLICIT));
+    }
+
+    /** Closes the field back into the button; {@code clear} also drops the query, so the whole list returns. */
+    private void closeSearch(boolean clear) {
+        if (!searchOpen) return;
+        searchOpen = false;
+        hideKeyboard();
+        if (searchField.hasFocus() && mainRoot != null) mainRoot.requestFocus();
+        if (clear && searchField.length() > 0) searchField.setText("");
+        searchBox.setClickable(true);
+        searchBox.setContentDescription(getText(R.string.search_open));
+        resizeSearch(ui.dp(48), true, false);
+    }
+
+    /** Moves the focus off the search field, which closes it when no query is typed. */
+    private void leaveSearch() {
+        if (searchField == null || !searchField.hasFocus()) return;
+        hideKeyboard();
+        if (mainRoot != null) mainRoot.requestFocus();
+    }
+
+    private void hideKeyboard() {
+        if (searchField != null) {
+            getSystemService(InputMethodManager.class).hideSoftInputFromWindow(searchField.getWindowToken(), 0);
+        }
+    }
+
+    /**
+     * Opening decelerates and closing accelerates, so closing retraces opening exactly; the animator follows the system
+     * animation scale and jumps to the end when animations are off.
+     */
+    private void resizeSearch(int target, boolean animate, boolean opening) {
+        ValueAnimator previous = searchMotion;
+        searchMotion = null;
+        if (previous != null) previous.cancel();
+        ViewGroup.LayoutParams params = searchBox.getLayoutParams();
+        int from = searchBox.getWidth() > 0 ? searchBox.getWidth() : params.width;
+        float partsFrom = searchField.getAlpha();
+        float partsTo = opening ? 1f : 0f;
+        if (!animate) {
+            setSearchSize(target, partsTo);
+            if (!opening) hideSearchParts();
+            return;
+        }
+        ValueAnimator motion = ValueAnimator.ofFloat(0f, 1f);
+        motion.setDuration(SEARCH_MILLIS);
+        motion.setInterpolator(opening ? new DecelerateInterpolator() : new AccelerateInterpolator());
+        motion.addUpdateListener(update -> {
+            float fraction = (float) update.getAnimatedValue();
+            setSearchSize(Math.round(from + (target - from) * fraction), partsFrom + (partsTo - partsFrom) * fraction);
+        });
+        motion.addListener(new AnimatorListenerAdapter() {
+            @Override
+            public void onAnimationEnd(Animator animation) {
+                if (searchMotion != motion) return;
+                searchMotion = null;
+                if (!searchOpen) hideSearchParts();
+            }
+        });
+        searchMotion = motion;
+        motion.start();
+    }
+
+    private void setSearchSize(int width, float parts) {
+        ViewGroup.LayoutParams params = searchBox.getLayoutParams();
+        if (params.width != width) {
+            params.width = width;
+            searchBox.setLayoutParams(params);
+        }
+        setSearchParts(parts);
+    }
+
+    private void setSearchParts(float alpha) {
+        searchField.setAlpha(alpha);
+        searchClose.setAlpha(alpha);
+    }
+
+    private void hideSearchParts() {
+        searchField.setVisibility(View.GONE);
+        searchClose.setVisibility(View.GONE);
     }
 
     private void tracks(MusicLibrary.Snapshot value) {
@@ -475,6 +641,7 @@ public final class PlayerActivity extends MusicActivity {
         if (action == MotionEvent.ACTION_DOWN) {
             listTouched = true;
             ownScroll = false;
+            leaveSearch();
         } else if (action == MotionEvent.ACTION_UP || action == MotionEvent.ACTION_CANCEL) {
             listTouched = false;
         }
@@ -543,6 +710,7 @@ public final class PlayerActivity extends MusicActivity {
     private void openFolder(long id) {
         folderId = id;
         query = "";
+        searchOpen = false;
         showMain();
     }
 

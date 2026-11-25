@@ -54,6 +54,8 @@
     <string name="player_empty_hint">Медиатекадан трек таңдаңыз.</string>
     <string name="library">Медиатека</string>
     <string name="search_library">Музыка іздеу</string>
+    <string name="search_open">Іздеу</string>
+    <string name="search_close">Іздеуді жабу</string>
     <string name="empty_library">Әзірге трек жоқ</string>
     <string name="empty_library_hint">Wi-Fi арқылы музыка қосу үшін телефонды қосыңыз.</string>
     <string name="no_matches">Іздеу бойынша трек табылмады.</string>

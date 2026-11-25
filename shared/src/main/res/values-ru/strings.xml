@@ -54,6 +54,8 @@
     <string name="player_empty_hint">Выберите трек из медиатеки.</string>
     <string name="library">Медиатека</string>
     <string name="search_library">Поиск музыки</string>
+    <string name="search_open">Поиск</string>
+    <string name="search_close">Закрыть поиск</string>
     <string name="empty_library">Пока нет треков</string>
     <string name="empty_library_hint">Подключите телефон, чтобы добавить музыку по Wi-Fi.</string>
     <string name="no_matches">По вашему запросу ничего не найдено.</string>

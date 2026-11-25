@@ -54,6 +54,8 @@
     <string name="player_empty_hint">Choose a track from your library.</string>
     <string name="library">Library</string>
     <string name="search_library">Search music</string>
+    <string name="search_open">Search</string>
+    <string name="search_close">Close search</string>
     <string name="empty_library">No tracks yet</string>
     <string name="empty_library_hint">Connect a phone to add music over Wi-Fi.</string>
     <string name="no_matches">No tracks match your search.</string>
