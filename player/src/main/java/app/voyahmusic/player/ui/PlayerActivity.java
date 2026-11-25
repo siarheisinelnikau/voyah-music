@@ -19,9 +19,11 @@ import android.text.Editable;
 import android.text.InputFilter;
 import android.text.TextWatcher;
 import android.view.Gravity;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.WindowManager;
+import android.widget.AbsListView;
 import android.widget.BaseAdapter;
 import android.widget.Button;
 import android.widget.EditText;
@@ -102,7 +104,9 @@ public final class PlayerActivity extends MusicActivity {
     private View emblem;
     private boolean compactStage;
     private TrackAdapter adapter;
-    private String query = "", highlighted = "";
+    private ListView list;
+    private boolean followOnOpen, listTouched, listScrolling, ownScroll;
+    private String query = "", highlighted = "", followedQuery = "";
     private PairQr lastQr;
     private Bitmap qrBitmap;
 
@@ -148,6 +152,7 @@ public final class PlayerActivity extends MusicActivity {
         super.onStart();
         MusicIntro.onActivityStart(this, prefs.startupAnimation());
         visible = true;
+        followOnOpen = true;
         model.observe(this::tracks, this::renderReceiver);
         model.refresh();
         model.setPairingVisible(receiving);
@@ -245,6 +250,8 @@ public final class PlayerActivity extends MusicActivity {
         }
         setContentView(root);
         root.requestFocus();
+        followOnOpen = true;
+        followedQuery = query;
         filter();
         renderPlayback();
     }
@@ -390,7 +397,24 @@ public final class PlayerActivity extends MusicActivity {
         LinearLayout.LayoutParams listSpace = new LinearLayout.LayoutParams(MATCH, 0, 1f);
         listSpace.topMargin = ui.dp(8);
         library.addView(body, listSpace);
-        ListView list = new ListView(this);
+        list = new ListView(this) {
+            @Override
+            public boolean dispatchTouchEvent(MotionEvent event) {
+                touched(event);
+                return super.dispatchTouchEvent(event);
+            }
+        };
+        listTouched = listScrolling = ownScroll = false;
+        list.setOnScrollListener(new AbsListView.OnScrollListener() {
+            @Override
+            public void onScrollStateChanged(AbsListView view, int state) {
+                listScrolling = state != SCROLL_STATE_IDLE;
+                if (!listScrolling) ownScroll = false;
+            }
+
+            @Override
+            public void onScroll(AbsListView view, int first, int visibleCount, int totalCount) {}
+        });
         list.setDivider(null);
         list.setClipToPadding(false);
         adapter = new TrackAdapter();
@@ -443,6 +467,56 @@ public final class PlayerActivity extends MusicActivity {
         }
         adapter.rows = result;
         adapter.notifyDataSetChanged();
+        follow(false);
+    }
+
+    private void touched(MotionEvent event) {
+        int action = event.getActionMasked();
+        if (action == MotionEvent.ACTION_DOWN) {
+            listTouched = true;
+            ownScroll = false;
+        } else if (action == MotionEvent.ACTION_UP || action == MotionEvent.ACTION_CANCEL) {
+            listTouched = false;
+        }
+    }
+
+    /** Keeps the playing track in view: see {@link TrackFollow} for when the list moves. */
+    private void follow(boolean newTrack) {
+        if (list == null || adapter == null || settings || receiving) return;
+        boolean newQuery = !query.equals(followedQuery);
+        followedQuery = query;
+        boolean opened = followOnOpen && tracks != null && playback != null;
+        if (opened) followOnOpen = false;
+        switch (TrackFollow.move(opened, newQuery, newTrack, playingRow())) {
+            case TOP -> list.setSelection(0);
+            case SHOW -> reveal(false);
+            case FOLLOW -> reveal(true);
+            case STAY -> { }
+        }
+    }
+
+    private int playingRow() {
+        return TrackFollow.rowOf(adapter.rows, highlighted, entry -> entry instanceof Track track ? track.id() : null);
+    }
+
+    /** Brings the playing track into view after the next layout, unless it is fully visible or the user holds the list. */
+    private void reveal(boolean smooth) {
+        ListView target = list;
+        target.post(() -> {
+            int row = playingRow();
+            if (target != list || row < 0 || !TrackFollow.mayMove(listTouched, listScrolling, ownScroll)) return;
+            int first = target.getFirstVisiblePosition();
+            View child = row >= first ? target.getChildAt(row - first) : null;
+            // Each row ends with its gap to the next one, which does not need to be on screen.
+            if (child != null && TrackFollow.fullyVisible(child.getTop(),
+                    child.getBottom() - child.getPaddingBottom(), target.getHeight())) return;
+            if (smooth) {
+                ownScroll = true;
+                target.smoothScrollToPositionFromTop(TrackFollow.firstRow(row), 0);
+            } else {
+                target.setSelectionFromTop(TrackFollow.firstRow(row), 0);
+            }
+        });
     }
 
     /** Lets the driver order the library; the queue follows, so next always plays the row below. */
@@ -511,10 +585,12 @@ public final class PlayerActivity extends MusicActivity {
         PlaybackService.State state = playback == null ? null : playback.state();
         String active = state == null ? "" : state.id();
         Track track = currentTrack(active);
-        if (!highlighted.equals(active)) {
+        boolean newTrack = !highlighted.equals(active);
+        if (newTrack) {
             highlighted = active;
             adapter.notifyDataSetChanged();
         }
+        follow(newTrack);
         boolean hasTrack = track != null;
         title.setText(hasTrack ? track.title() : getText(R.string.player_empty));
         String details = hasTrack ? details(track) : getString(R.string.player_empty_hint);
