@@ -64,6 +64,14 @@
     <string name="delete_track">Тректі жою</string>
     <string name="delete_hint">«%1$s» трегін осы құрылғыдан жою керек пе?</string>
     <string name="delete_failed">Тректі жою мүмкін болмады.</string>
+    <string name="folder_options">Қалта әрекеттері</string>
+    <string name="delete_folder">Қалтаны жою</string>
+    <string name="delete_folder_empty">Бос «%1$s» қалтасын жою керек пе?</string>
+    <string name="delete_folder_failed">Қалтаны жою мүмкін болмады.</string>
+    <plurals name="delete_folder_tracks">
+        <item quantity="one">«%1$s» қалтасын және ондағы %2$d тректі осы құрылғыдан жою керек пе?</item>
+        <item quantity="other">«%1$s» қалтасын және ондағы %2$d тректі осы құрылғыдан жою керек пе?</item>
+    </plurals>
     <string name="receive">Телефонды қосу</string>
     <string name="receive_instructions">Бұл QR кодын Voyah Music Transfer қолданбасында сканерлеңіз. Қолмен қосу үшін төмендегі IP мекенжай мен кодты пайдаланыңыз.</string>
     <string name="car_address">Көліктің IP мекенжайы</string>

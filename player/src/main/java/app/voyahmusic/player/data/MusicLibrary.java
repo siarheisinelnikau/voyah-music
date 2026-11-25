@@ -26,6 +26,15 @@ public final class MusicLibrary {
         public long folderOf(Track track) {
             return locations.getOrDefault(track.id(), 0L);
         }
+
+        /** The tracks kept in {@code folder}, in library order; folder 0 is the list outside every folder. */
+        public List<Track> tracksIn(long folder) {
+            List<Track> result = new ArrayList<>();
+            for (Track track : tracks) {
+                if (folderOf(track) == folder) result.add(track);
+            }
+            return result;
+        }
     }
 
     private static final long RESERVE_BYTES = 32L * 1024 * 1024;
@@ -129,6 +138,18 @@ public final class MusicLibrary {
 
     public synchronized long createFolder(String name) {
         return folders.create(name);
+    }
+
+    /**
+     * Deletes a folder with the tracks in it from this device. A track that cannot be deleted keeps the folder, so
+     * whatever is left stays visible in it.
+     */
+    public synchronized boolean deleteFolder(long id) {
+        if (id == 0 || !folders.exists(id)) return false;
+        for (Track track : snapshot().tracksIn(id)) {
+            if (!remove(track)) return false;
+        }
+        return folders.delete(id);
     }
 
     public synchronized boolean moveTrack(Track track, long folder) {

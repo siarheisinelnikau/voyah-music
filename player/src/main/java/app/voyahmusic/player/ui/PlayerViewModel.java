@@ -77,6 +77,10 @@ final class PlayerViewModel {
         edit(() -> library.createFolder(name) > 0, failure);
     }
 
+    void deleteFolder(long folder, Runnable failure) {
+        edit(() -> library.deleteFolder(folder), failure);
+    }
+
     void moveTrack(Track track, long folder, Runnable failure) {
         edit(() -> library.moveTrack(track, folder), failure);
     }

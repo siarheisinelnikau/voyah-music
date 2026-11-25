@@ -64,6 +64,14 @@
     <string name="delete_track">Delete track</string>
     <string name="delete_hint">Remove “%1$s” from this device?</string>
     <string name="delete_failed">Could not delete this track.</string>
+    <string name="folder_options">Folder options</string>
+    <string name="delete_folder">Delete folder</string>
+    <string name="delete_folder_empty">Delete the empty folder “%1$s”?</string>
+    <string name="delete_folder_failed">Could not delete this folder.</string>
+    <plurals name="delete_folder_tracks">
+        <item quantity="one">Delete the folder “%1$s” and the %2$d track in it from this device?</item>
+        <item quantity="other">Delete the folder “%1$s” and the %2$d tracks in it from this device?</item>
+    </plurals>
     <string name="receive">Connect phone</string>
     <string name="receive_instructions">Scan this QR code in Voyah Music Transfer. For manual setup, use the IP address and code below.</string>
     <string name="car_address">Car IP address</string>

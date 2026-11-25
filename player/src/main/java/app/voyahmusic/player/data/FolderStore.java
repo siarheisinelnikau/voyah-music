@@ -64,6 +64,21 @@ final class FolderStore extends SQLiteOpenHelper {
         return getWritableDatabase().insertWithOnConflict("folders", null, values, SQLiteDatabase.CONFLICT_IGNORE);
     }
 
+    /** Removes a folder and the places of the tracks that were in it; the caller removes those tracks first. */
+    boolean delete(long id) {
+        if (id == 0) return false;
+        SQLiteDatabase db = getWritableDatabase();
+        db.beginTransaction();
+        try {
+            db.delete("locations", "folder = ?", new String[] {Long.toString(id)});
+            boolean removed = db.delete("folders", "id = ?", new String[] {Long.toString(id)}) > 0;
+            db.setTransactionSuccessful();
+            return removed;
+        } finally {
+            db.endTransaction();
+        }
+    }
+
     boolean move(String track, long folder) {
         if (!exists(folder)) return false;
         if (folder == 0) {

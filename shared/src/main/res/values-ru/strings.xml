@@ -64,6 +64,16 @@
     <string name="delete_track">Удалить трек</string>
     <string name="delete_hint">Удалить «%1$s» с этого устройства?</string>
     <string name="delete_failed">Не удалось удалить трек.</string>
+    <string name="folder_options">Действия с папкой</string>
+    <string name="delete_folder">Удалить папку</string>
+    <string name="delete_folder_empty">Удалить пустую папку «%1$s»?</string>
+    <string name="delete_folder_failed">Не удалось удалить папку.</string>
+    <plurals name="delete_folder_tracks">
+        <item quantity="one">Удалить папку «%1$s» и %2$d трек в ней с этого устройства?</item>
+        <item quantity="few">Удалить папку «%1$s» и %2$d трека в ней с этого устройства?</item>
+        <item quantity="many">Удалить папку «%1$s» и %2$d треков в ней с этого устройства?</item>
+        <item quantity="other">Удалить папку «%1$s» и %2$d трека в ней с этого устройства?</item>
+    </plurals>
     <string name="receive">Подключить телефон</string>
     <string name="receive_instructions">Отсканируйте этот QR-код в Voyah Music Transfer. Для ручного подключения используйте IP-адрес и код ниже.</string>
     <string name="car_address">IP-адрес машины</string>

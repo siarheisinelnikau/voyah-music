@@ -775,6 +775,28 @@ public final class PlayerActivity extends MusicActivity {
         dialog.show();
     }
 
+    private void folderOptions(Folder folder, View anchor) {
+        PopupMenu popup = new PopupMenu(this, anchor);
+        popup.getMenu().add(0, R.string.delete_folder, 0, R.string.delete_folder);
+        popup.setOnMenuItemClickListener(option -> {
+            deleteFolder(folder);
+            return true;
+        });
+        popup.show();
+    }
+
+    /** Asks before a folder goes with its tracks; playback skips to the next track left, as when one track is deleted. */
+    private void deleteFolder(Folder folder) {
+        if (librarySnapshot == null) return;
+        int count = librarySnapshot.tracksIn(folder.id()).size();
+        String message = count == 0 ? getString(R.string.delete_folder_empty, folder.name())
+                : getResources().getQuantityString(R.plurals.delete_folder_tracks, count, folder.name(), count);
+        new AlertDialog.Builder(this).setTitle(R.string.delete_folder).setMessage(message)
+                .setNegativeButton(R.string.cancel, null)
+                .setPositiveButton(R.string.delete_folder, (dialog, item) -> model.deleteFolder(folder.id(),
+                        () -> Toast.makeText(this, R.string.delete_folder_failed, Toast.LENGTH_LONG).show())).show();
+    }
+
     private void move(Track track) {
         if (librarySnapshot == null) return;
         List<Folder> choices = new ArrayList<>();
@@ -1042,9 +1064,18 @@ public final class PlayerActivity extends MusicActivity {
                 button.setGravity(Gravity.START | Gravity.CENTER_VERTICAL);
                 button.setCompoundDrawablesRelativeWithIntrinsicBounds(ui.glyph(UiKit.Icon.FOLDER, ui.accent, 22), null, null, null);
                 button.setCompoundDrawablePadding(ui.dp(14));
-                LinearLayout holder = ui.column();
+                // Leave room for the options button, which lines up with the options of the track rows.
+                button.setPaddingRelative(ui.dp(13), ui.dp(8), ui.dp(13 + 48), ui.dp(8));
+                FrameLayout holder = new FrameLayout(PlayerActivity.this);
                 holder.setPadding(0, 0, 0, ui.dp(7));
                 holder.addView(button, MATCH, ui.dp(55));
+                ImageButton[] options = new ImageButton[1];
+                options[0] = ui.iconButton(UiKit.Icon.MORE, getText(R.string.folder_options), false,
+                        () -> folderOptions(folder, options[0]));
+                FrameLayout.LayoutParams place = new FrameLayout.LayoutParams(ui.dp(48), ui.dp(48),
+                        Gravity.END | Gravity.CENTER_VERTICAL);
+                place.setMarginEnd(ui.dp(5));
+                holder.addView(options[0], place);
                 return holder;
             }
             TrackRow item = reusable instanceof TrackRow row ? row : new TrackRow();
