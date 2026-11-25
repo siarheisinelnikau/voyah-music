@@ -302,8 +302,10 @@ public final class PlayerActivity extends MusicActivity {
         title = ui.text("", compact ? 21 : 29, UiKit.TEXT, true);
         title.setGravity(Gravity.CENTER);
         ui.truncate(title, compact ? 1 : 2);
-        // The title keeps the height of its longest form, so a track with a shorter title does not move the card.
+        // The title keeps the height of its longest form, so a track with a shorter title does not move the card;
+        // a one-line title sits on the artist line, leaving the spare line above it.
         title.setMinLines(compact ? 1 : 2);
+        if (!compact) title.setGravity(Gravity.CENTER_HORIZONTAL | Gravity.BOTTOM);
         ui.add(card, title, MATCH, WRAP, compact ? 10 : 20);
         artist = ui.text("", 15, UiKit.MUTED, false);
         artist.setGravity(Gravity.CENTER);
