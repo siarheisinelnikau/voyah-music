@@ -135,11 +135,20 @@ public abstract class MusicActivity extends Activity {
     }
 
     protected void settingsButton(LinearLayout header) {
+        updateButton(header);
+        settingsIcon(header);
+    }
+
+    /** The button that offers an available update; it shows only while one is offered. */
+    protected void updateButton(LinearLayout header) {
         updateLink = ui.button(getText(R.string.update_available_short), true, this::openSettings);
         LinearLayout.LayoutParams linkParams = new LinearLayout.LayoutParams(WRAP, ui.dp(48));
         linkParams.rightMargin = ui.dp(8);
         header.addView(updateLink, linkParams);
         showUpdateLink();
+    }
+
+    protected void settingsIcon(LinearLayout header) {
         header.addView(ui.iconButton(UiKit.Icon.SETTINGS, getText(R.string.settings), false, this::openSettings),
                 ui.dp(48), ui.dp(48));
     }

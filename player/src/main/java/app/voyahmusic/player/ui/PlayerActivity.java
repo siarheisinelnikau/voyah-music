@@ -261,10 +261,11 @@ public final class PlayerActivity extends MusicActivity {
             ui.gap(header, 18);
             libraryHeader(header, true);
             ui.gap(header, 8);
+            settingsIcon(header);
         } else {
             header = heading(getString(R.string.player_name), false);
+            settingsButton(header);
         }
-        settingsButton(header);
         ui.add(root, header, MATCH, WRAP, 0);
         LinearLayout content = wide ? ui.row() : ui.column();
         content.setGravity(Gravity.TOP);
@@ -401,7 +402,14 @@ public final class PlayerActivity extends MusicActivity {
         return libraryBody(library, body);
     }
 
-    /** The library's title and buttons: in the page header on wide screens, at the top of the library card otherwise. */
+    /**
+     * The library's title and buttons: in the page header on wide screens, at the top of the library card otherwise.
+     *
+     * <p>The buttons keep one order and fixed places at the right: search, sort, new folder, Connect phone and, on wide
+     * screens, Settings after them, all 8 dp apart. New folder stays in its place, dimmed, inside a folder; an
+     * offered update appears left of the search button, the search field opens leftward over the title, and a long
+     * title ends in an ellipsis, so none of them moves a button.
+     */
     private void libraryHeader(LinearLayout header, boolean wide) {
         if (folderId != 0) {
             header.addView(ui.iconButton(UiKit.Icon.BACK, getText(R.string.library), false, () -> openFolder(0)),
@@ -411,17 +419,19 @@ public final class PlayerActivity extends MusicActivity {
         libraryTitle = ui.text(getText(R.string.library), wide ? 24 : 20, UiKit.TEXT, true);
         ui.truncate(libraryTitle, 1);
         header.addView(libraryTitle, ui.weighted());
-        ui.gap(header, 6);
+        ui.gap(header, 8);
+        if (wide) updateButton(header);
         header.addView(searchBox(), new LinearLayout.LayoutParams(ui.dp(48), ui.dp(48)));
         ui.gap(header, 8);
         sortButton = ui.iconButton(UiKit.Icon.SORT, getText(R.string.sort_tracks), false, this::chooseOrder);
         header.addView(sortButton, ui.dp(48), ui.dp(48));
         ui.gap(header, 8);
-        if (folderId == 0) {
-            header.addView(ui.iconButton(UiKit.Icon.FOLDER_ADD, getText(R.string.new_folder), false, this::createFolder),
-                    ui.dp(48), ui.dp(48));
-            ui.gap(header, 8);
-        }
+        View newFolder = ui.iconButton(UiKit.Icon.FOLDER_ADD, getText(R.string.new_folder), false, this::createFolder);
+        // Folders hold no folders, so inside one the button stays in its place dimmed, as unavailable buttons are,
+        // instead of leaving and moving the others.
+        ui.enabled(newFolder, folderId == 0);
+        header.addView(newFolder, ui.dp(48), ui.dp(48));
+        ui.gap(header, 8);
         receiveButton = ui.button(getText(R.string.receive), false, this::openReceiver);
         header.addView(receiveButton, WRAP, WRAP);
     }
