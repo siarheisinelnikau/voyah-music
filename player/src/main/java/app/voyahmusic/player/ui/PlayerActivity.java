@@ -243,14 +243,29 @@ public final class PlayerActivity extends MusicActivity {
         hideKeyboard();
         LinearLayout root = page();
         mainRoot = root;
-        LinearLayout header = heading(getString(R.string.player_name), false);
-        settingsButton(header);
-        ui.add(root, header, MATCH, WRAP, 0);
-
         int width = getResources().getConfiguration().screenWidthDp;
         int height = getResources().getConfiguration().screenHeightDp;
         boolean wide = width >= 720;
         boolean compact = !wide || height < 470;
+        int panelWidth = Math.min(445, Math.max(320, (int) (width * 0.36f)));
+        LinearLayout header;
+        if (wide) {
+            // As in Voyah Radio, the library's own row moves up beside Settings, above the library, so the track list
+            // starts level with the player card and shows more tracks.
+            header = ui.row();
+            TextView name = ui.text(getString(R.string.player_name), 25, UiKit.TEXT, true);
+            ui.truncate(name, 2);
+            name.setMinHeight(ui.dp(52));
+            name.setGravity(Gravity.CENTER_VERTICAL);
+            header.addView(name, ui.dp(panelWidth), WRAP);
+            ui.gap(header, 18);
+            libraryHeader(header, true);
+            ui.gap(header, 8);
+        } else {
+            header = heading(getString(R.string.player_name), false);
+        }
+        settingsButton(header);
+        ui.add(root, header, MATCH, WRAP, 0);
         LinearLayout content = wide ? ui.row() : ui.column();
         content.setGravity(Gravity.TOP);
         LinearLayout.LayoutParams fill = new LinearLayout.LayoutParams(MATCH, 0, 1f);
@@ -259,7 +274,6 @@ public final class PlayerActivity extends MusicActivity {
         LinearLayout player = playerCard(compact, width < 375);
         LinearLayout library = libraryCard(wide);
         if (wide) {
-            int panelWidth = Math.min(445, Math.max(320, (int) (width * 0.36f)));
             content.addView(player, ui.dp(panelWidth), MATCH);
             LinearLayout.LayoutParams remainder = new LinearLayout.LayoutParams(0, MATCH, 1f);
             remainder.leftMargin = ui.dp(18);
@@ -375,7 +389,20 @@ public final class PlayerActivity extends MusicActivity {
 
     private LinearLayout libraryCard(boolean wide) {
         LinearLayout library = ui.card(wide ? 16 : 12);
-        LinearLayout header = ui.row();
+        if (!wide) {
+            LinearLayout header = ui.row();
+            libraryHeader(header, false);
+            ui.add(library, header, MATCH, WRAP, 0);
+        }
+        FrameLayout body = new FrameLayout(this);
+        LinearLayout.LayoutParams listSpace = new LinearLayout.LayoutParams(MATCH, 0, 1f);
+        if (!wide) listSpace.topMargin = ui.dp(10);
+        library.addView(body, listSpace);
+        return libraryBody(library, body);
+    }
+
+    /** The library's title and buttons: in the page header on wide screens, at the top of the library card otherwise. */
+    private void libraryHeader(LinearLayout header, boolean wide) {
         if (folderId != 0) {
             header.addView(ui.iconButton(UiKit.Icon.BACK, getText(R.string.library), false, () -> openFolder(0)),
                     ui.dp(48), ui.dp(48));
@@ -397,11 +424,9 @@ public final class PlayerActivity extends MusicActivity {
         }
         receiveButton = ui.button(getText(R.string.receive), false, this::openReceiver);
         header.addView(receiveButton, WRAP, WRAP);
-        ui.add(library, header, MATCH, WRAP, 0);
-        FrameLayout body = new FrameLayout(this);
-        LinearLayout.LayoutParams listSpace = new LinearLayout.LayoutParams(MATCH, 0, 1f);
-        listSpace.topMargin = ui.dp(10);
-        library.addView(body, listSpace);
+    }
+
+    private LinearLayout libraryBody(LinearLayout library, FrameLayout body) {
         list = new ListView(this) {
             @Override
             public boolean dispatchTouchEvent(MotionEvent event) {
