@@ -35,7 +35,7 @@
     <string name="invalid_folder">Введите название папки без косых черт.</string>
     <string name="folder_failed">Не удалось создать папку. Укажите другое название.</string>
     <string name="empty_folder">В этой папке пока нет треков</string>
-    <string name="library_root">Корень медиатеки</string>
+    <string name="library_root">Без папки</string>
     <string name="move_track">Переместить в папку</string>
     <string name="move_failed">Не удалось переместить трек.</string>
     <string name="destination">Папка назначения</string>

@@ -51,15 +51,14 @@
     <string name="playback_position">Playback position</string>
     <string name="playback_error">Could not play this track. Select another file or try again.</string>
     <string name="player_empty">Ready to play</string>
-    <string name="player_empty_hint">Choose a track from your library.</string>
-    <string name="library">Library</string>
+    <string name="player_empty_hint">Choose a track from the list.</string>
     <string name="search_library">Search music</string>
     <string name="search_open">Search</string>
     <string name="search_close">Close search</string>
     <string name="empty_library">No tracks yet</string>
     <string name="empty_library_hint">Connect a phone to add music over Wi-Fi.</string>
     <string name="no_matches">No tracks match your search.</string>
-    <string name="loading_library">Loading library…</string>
+    <string name="loading_library">Loading music…</string>
     <string name="track_options">Track options</string>
     <string name="delete_track">Delete track</string>
     <string name="delete_hint">Remove “%1$s” from this device?</string>
@@ -82,7 +81,7 @@
     <string name="receive_failed">Could not start receiving on this network. Try again.</string>
     <string name="start_receiving">Start receiving</string>
     <string name="opening_receiver">Opening the receive window…</string>
-    <string name="received_track">Added to library: %1$s</string>
+    <string name="received_track">Added: %1$s</string>
     <string name="transfer_connection">Car connection</string>
     <string name="transfer_instructions">Join the car’s Wi-Fi. In Voyah Music, open Connect phone and scan the displayed QR code here.</string>
     <string name="address_example">192.168.1.20</string>

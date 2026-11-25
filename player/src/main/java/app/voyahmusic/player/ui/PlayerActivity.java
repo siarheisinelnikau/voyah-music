@@ -412,11 +412,12 @@ public final class PlayerActivity extends MusicActivity {
      */
     private void libraryHeader(LinearLayout header, boolean wide) {
         if (folderId != 0) {
-            header.addView(ui.iconButton(UiKit.Icon.BACK, getText(R.string.library), false, () -> openFolder(0)),
+            header.addView(ui.iconButton(UiKit.Icon.BACK, getText(R.string.back), false, () -> openFolder(0)),
                     ui.dp(48), ui.dp(48));
             ui.gap(header, 8);
         }
-        libraryTitle = ui.text(getText(R.string.library), wide ? 24 : 20, UiKit.TEXT, true);
+        // The list outside folders has no heading; inside a folder this shows the folder's name.
+        libraryTitle = ui.text("", wide ? 24 : 20, UiKit.TEXT, true);
         ui.truncate(libraryTitle, 1);
         header.addView(libraryTitle, ui.weighted());
         ui.gap(header, 8);

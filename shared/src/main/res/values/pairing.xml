@@ -35,7 +35,7 @@
     <string name="invalid_folder">Enter a folder name without slashes.</string>
     <string name="folder_failed">Could not create the folder. Use a different name.</string>
     <string name="empty_folder">This folder is empty</string>
-    <string name="library_root">Library root</string>
+    <string name="library_root">No folder</string>
     <string name="move_track">Move to folder</string>
     <string name="move_failed">Could not move this track.</string>
     <string name="destination">Send files to</string>

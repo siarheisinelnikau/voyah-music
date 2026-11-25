@@ -51,15 +51,14 @@
     <string name="playback_position">Ойнату орны</string>
     <string name="playback_error">Бұл тректі ойнату мүмкін болмады. Басқа файлды таңдаңыз немесе қайталап көріңіз.</string>
     <string name="player_empty">Ойнатуға дайын</string>
-    <string name="player_empty_hint">Медиатекадан трек таңдаңыз.</string>
-    <string name="library">Медиатека</string>
+    <string name="player_empty_hint">Тізімнен трек таңдаңыз.</string>
     <string name="search_library">Музыка іздеу</string>
     <string name="search_open">Іздеу</string>
     <string name="search_close">Іздеуді жабу</string>
     <string name="empty_library">Әзірге трек жоқ</string>
     <string name="empty_library_hint">Wi-Fi арқылы музыка қосу үшін телефонды қосыңыз.</string>
     <string name="no_matches">Іздеу бойынша трек табылмады.</string>
-    <string name="loading_library">Медиатека жүктелуде…</string>
+    <string name="loading_library">Музыка жүктелуде…</string>
     <string name="track_options">Трек әрекеттері</string>
     <string name="delete_track">Тректі жою</string>
     <string name="delete_hint">«%1$s» трегін осы құрылғыдан жою керек пе?</string>
@@ -82,7 +81,7 @@
     <string name="receive_failed">Бұл желіде қабылдауды бастау мүмкін болмады. Қайталап көріңіз.</string>
     <string name="start_receiving">Қабылдауды бастау</string>
     <string name="opening_receiver">Қабылдау терезесі ашылуда…</string>
-    <string name="received_track">Медиатекаға қосылды: %1$s</string>
+    <string name="received_track">Қосылды: %1$s</string>
     <string name="transfer_connection">Көлікке қосылу</string>
     <string name="transfer_instructions">Көліктің Wi-Fi желісіне қосылыңыз. Voyah Music қолданбасында «Телефонды қосу» түймесін басып, көрсетілген QR кодын сканерлеңіз.</string>
     <string name="address_example">192.168.1.20</string>

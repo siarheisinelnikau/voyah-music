@@ -35,7 +35,7 @@
     <string name="invalid_folder">Қалта атауын қиғаш сызықсыз енгізіңіз.</string>
     <string name="folder_failed">Қалта жасау мүмкін болмады. Басқа атау енгізіңіз.</string>
     <string name="empty_folder">Бұл қалта бос</string>
-    <string name="library_root">Медиатека түбірі</string>
+    <string name="library_root">Қалтасыз</string>
     <string name="move_track">Қалтаға жылжыту</string>
     <string name="move_failed">Тректі жылжыту мүмкін болмады.</string>
     <string name="destination">Жіберілетін орын</string>

@@ -51,15 +51,14 @@
     <string name="playback_position">Позиция воспроизведения</string>
     <string name="playback_error">Не удалось воспроизвести трек. Выберите другой файл или повторите попытку.</string>
     <string name="player_empty">Готово к воспроизведению</string>
-    <string name="player_empty_hint">Выберите трек из медиатеки.</string>
-    <string name="library">Медиатека</string>
+    <string name="player_empty_hint">Выберите трек из списка.</string>
     <string name="search_library">Поиск музыки</string>
     <string name="search_open">Поиск</string>
     <string name="search_close">Закрыть поиск</string>
     <string name="empty_library">Пока нет треков</string>
     <string name="empty_library_hint">Подключите телефон, чтобы добавить музыку по Wi-Fi.</string>
     <string name="no_matches">По вашему запросу ничего не найдено.</string>
-    <string name="loading_library">Загрузка медиатеки…</string>
+    <string name="loading_library">Загрузка музыки…</string>
     <string name="track_options">Действия с треком</string>
     <string name="delete_track">Удалить трек</string>
     <string name="delete_hint">Удалить «%1$s» с этого устройства?</string>
@@ -84,7 +83,7 @@
     <string name="receive_failed">Не удалось начать приём в этой сети. Повторите попытку.</string>
     <string name="start_receiving">Начать приём</string>
     <string name="opening_receiver">Открываем приём файлов…</string>
-    <string name="received_track">Добавлено в медиатеку: %1$s</string>
+    <string name="received_track">Добавлено: %1$s</string>
     <string name="transfer_connection">Подключение к машине</string>
     <string name="transfer_instructions">Подключитесь к Wi-Fi машины. В Voyah Music нажмите «Подключить телефон» и отсканируйте показанный QR-код.</string>
     <string name="address_example">192.168.1.20</string>
