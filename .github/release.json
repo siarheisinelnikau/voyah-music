@@ -1,0 +1,32 @@
+{
+  "tag": "v0.2.5",
+  "title": "Voyah Music 0.2.5",
+  "notes": "First GitHub release of Voyah Music and Voyah Music Transfer, the offline music player for the head unit and the companion for your Android phone.\n\n- Pair the phone with the head unit by QR code and transfer songs over local Wi-Fi. Transfers skip identical files and offer Replace, Keep both, or Skip when filenames conflict.\n- Play saved music offline, organize tracks into folders, search by title, artist, or album, and sort the library. Delete a folder and its tracks with confirmation.\n- The list settles on the playing track, and a live spectrum or waveform follows the sound. Use steering-wheel media controls and the Open Voyah Controls home-screen media card.\n- Both apps support English, Russian, and Kazakh and can download signed updates from Settings.\n\nInstall **VoyahMusic-v0.2.5.apk** on the head unit and **VoyahMusicTransfer-v0.2.5.apk** on the phone. Both require Android 9 or later. If you installed a debug preview, back up any local music before replacing it with this release. Android requires a reinstall when the signing certificate changes.",
+  "commit": "74d52aa63532c3224aa0b7d6b44b6598d5906102",
+  "assets": [
+    {
+      "name": "VoyahMusic-v0.2.5.apk",
+      "sha256": "a47d2e0e63d7015f1f88ea6298bcc1dcc99426a049c996f946cf40efefe81452",
+      "blobs": [
+        "a341e63b5fc15530e3d149ca19625979ec669bc5",
+        "b74fc703f82eb47674c502392125a84b7ae1664a",
+        "c8a3228eec808360691a117ee737bdea138528e3",
+        "61963e9ea77838d761d9aa4108b18060ef0de988",
+        "9723fd9874d631a1500d6390fd296e3e14c2ccc3",
+        "c3b79406cba176bea2825e69d1fa30b3e51c8a00",
+        "d60811a6390f61717ca6d73e5868fd8b8e4fb20b",
+        "8e69a7a1059b2c2724d6b3a4b3f666aa77ff8283",
+        "6f54a2406822027dc76303c3f10034a9c8241400",
+        "aa44493fed0bbd96d3dde40cea44ea363955bd5c",
+        "4255ce72cbe1f645389158b9dc000d9b21c351c3"
+      ]
+    },
+    {
+      "name": "VoyahMusicTransfer-v0.2.5.apk",
+      "sha256": "2b32d534f4b12d10ccb4d653b25b75004aaa26760b996d9f8d5fb6c8a3b7c7a4",
+      "blobs": [
+        "d3f2461f8e150443a38661ff75f006702c87c7a9"
+      ]
+    }
+  ]
+}
