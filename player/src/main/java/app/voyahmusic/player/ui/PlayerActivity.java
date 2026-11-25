@@ -121,7 +121,8 @@ public final class PlayerActivity extends MusicActivity {
     private ImageButton searchClose;
     private ValueAnimator searchMotion;
     private boolean searchOpen;
-    private boolean followOnOpen, listTouched, listScrolling, ownScroll;
+    private boolean followOnOpen, listTouched, listScrolling, ownScroll, followRetried;
+    private int followTarget = -1;
     private String query = "", highlighted = "", followedQuery = "";
     private PairQr lastQr;
     private Bitmap qrBitmap;
@@ -446,11 +447,15 @@ public final class PlayerActivity extends MusicActivity {
             }
         };
         listTouched = listScrolling = ownScroll = false;
+        followTarget = -1;
         list.setOnScrollListener(new AbsListView.OnScrollListener() {
             @Override
             public void onScrollStateChanged(AbsListView view, int state) {
                 listScrolling = state != SCROLL_STATE_IDLE;
-                if (!listScrolling) ownScroll = false;
+                if (listScrolling) return;
+                boolean settle = ownScroll && followTarget >= 0;
+                ownScroll = false;
+                if (settle) settleFollow();
             }
 
             @Override
@@ -681,6 +686,7 @@ public final class PlayerActivity extends MusicActivity {
         if (action == MotionEvent.ACTION_DOWN) {
             listTouched = true;
             ownScroll = false;
+            followTarget = -1;
             leaveSearch();
         } else if (action == MotionEvent.ACTION_UP || action == MotionEvent.ACTION_CANCEL) {
             listTouched = false;
@@ -718,12 +724,36 @@ public final class PlayerActivity extends MusicActivity {
             if (child != null && TrackFollow.fullyVisible(child.getTop(),
                     child.getBottom() - child.getPaddingBottom(), target.getHeight())) return;
             if (smooth) {
+                followTarget = TrackFollow.firstRow(row);
+                followRetried = false;
                 ownScroll = true;
-                target.smoothScrollToPositionFromTop(TrackFollow.firstRow(row), 0);
+                target.smoothScrollToPositionFromTop(followTarget, 0);
             } else {
+                followTarget = -1;
                 target.setSelectionFromTop(TrackFollow.firstRow(row), 0);
             }
         });
+    }
+
+    /**
+     * A smooth scroll of the list estimates row heights and can stop a row short over a long way, or stop when the
+     * list changes under it; once it ends off its row, the list scrolls there once more and then takes its place.
+     */
+    private void settleFollow() {
+        int goal = followTarget;
+        View first = list.getChildAt(0);
+        boolean placed = list.getFirstVisiblePosition() == goal && first != null && first.getTop() == 0;
+        boolean atEnd = !list.canScrollVertically(1);
+        if (placed || goal >= adapter.getCount() || (atEnd && list.getFirstVisiblePosition() <= goal)) {
+            followTarget = -1;
+        } else if (!followRetried) {
+            followRetried = true;
+            ownScroll = true;
+            list.smoothScrollToPositionFromTop(goal, 0);
+        } else {
+            followTarget = -1;
+            list.setSelectionFromTop(goal, 0);
+        }
     }
 
     /** Lets the driver order the library; the queue follows, so next always plays the row below. */
