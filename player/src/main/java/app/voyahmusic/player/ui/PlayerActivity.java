@@ -302,6 +302,8 @@ public final class PlayerActivity extends MusicActivity {
         title = ui.text("", compact ? 21 : 29, UiKit.TEXT, true);
         title.setGravity(Gravity.CENTER);
         ui.truncate(title, compact ? 1 : 2);
+        // The title keeps the height of its longest form, so a track with a shorter title does not move the card.
+        title.setMinLines(compact ? 1 : 2);
         ui.add(card, title, MATCH, WRAP, compact ? 10 : 20);
         artist = ui.text("", 15, UiKit.MUTED, false);
         artist.setGravity(Gravity.CENTER);
@@ -763,7 +765,8 @@ public final class PlayerActivity extends MusicActivity {
         title.setText(hasTrack ? track.title() : getText(R.string.player_empty));
         String details = hasTrack ? details(track) : getString(R.string.player_empty_hint);
         artist.setText(details);
-        artist.setVisibility(details.isEmpty() ? View.GONE : View.VISIBLE);
+        // An untagged track leaves the line empty instead of closing it, so switching tracks does not move the card.
+        artist.setVisibility(details.isEmpty() ? View.INVISIBLE : View.VISIBLE);
         problem.setVisibility(state != null && state.failed() ? View.VISIBLE : View.GONE);
         boolean playing = state != null && state.wantsPlay();
         renderStage(state);
@@ -789,7 +792,7 @@ public final class PlayerActivity extends MusicActivity {
     /** Shows the sound in place of the emblem while music plays; the compact layout shows it only then. */
     private void renderStage(PlaybackService.State state) {
         String mode = prefs.visualization();
-        boolean drawing = playback != null && state != null && state.playing() && !"off".equals(mode);
+        boolean drawing = PlayerStage.drawing(playback != null, state != null && state.wantsPlay(), mode);
         if (compactStage) stage.setVisibility(drawing ? View.VISIBLE : View.GONE);
         else if (emblem != null) emblem.setVisibility(drawing ? View.INVISIBLE : View.VISIBLE);
         visualizer.setVisibility(drawing ? View.VISIBLE : View.GONE);
