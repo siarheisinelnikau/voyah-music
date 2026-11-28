@@ -10,6 +10,7 @@
         android:icon="@drawable/ic_voyah_music"
         android:label="@string/player_name"
         android:theme="@style/MusicTheme">
+        <meta-data android:name="org.openvoyah.controls.PANEL_ICON" android:resource="@drawable/ic_voyah_music" />
         <activity android:name=".ui.PlayerActivity" android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />

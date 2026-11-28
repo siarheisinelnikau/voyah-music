@@ -39,13 +39,16 @@ public record WifiLink(InetAddress address, int prefix, Network network) {
                 var interfaces = NetworkInterface.getNetworkInterfaces();
                 if (interfaces != null) {
                     for (NetworkInterface iface : Collections.list(interfaces)) {
-                        if (!iface.isUp() || !iface.getName().matches("(wlan|swlan|softap|ap|wifi|br)[0-9]+")) continue;
+                        String name = iface.getName();
+                        if (!(name.startsWith("ap_br_") || name.matches("(wlan|swlan|softap|ap|wifi|br)[0-9]+"))
+                                || !iface.isUp()) continue;
                         for (InterfaceAddress link : iface.getInterfaceAddresses()) {
                             add(links, link.getAddress(), link.getNetworkPrefixLength(), null);
                         }
                     }
                 }
-            } catch (SocketException ignored) {
+            } catch (SocketException | NullPointerException ignored) {
+                // getNetworkInterfaces can throw NullPointerException on Android versions before 12.
                 // The connectivity API already supplied any active Wi-Fi client links.
             }
         }

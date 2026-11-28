@@ -190,7 +190,7 @@ public final class SendSession {
     }
 
     private SSLSocket connect() throws IOException {
-        Socket socket = link.network().getSocketFactory().createSocket();
+        Socket socket = new Socket();
         synchronized (this) {
             if (cancelled) {
                 socket.close();
@@ -199,6 +199,12 @@ public final class SendSession {
             current = socket;
         }
         try {
+            if (link.network() != null) {
+                link.network().bindSocket(socket);
+            } else {
+                // A hosted access point has a local address but no ConnectivityManager Network.
+                socket.bind(new InetSocketAddress(link.address(), 0));
+            }
             socket.connect(new InetSocketAddress(address, MusicWire.PORT), 4_000);
             socket.setSoTimeout(5_000);
             SSLSocket secured = (SSLSocket) tls.getSocketFactory()

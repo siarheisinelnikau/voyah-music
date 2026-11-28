@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="player_name">Voyah Music</string>
     <string name="transfer_name">Voyah Music Transfer</string>
     <string name="settings">Баптаулар</string>
     <string name="appearance">Безендіру</string>
@@ -83,7 +82,7 @@
     <string name="opening_receiver">Қабылдау терезесі ашылуда…</string>
     <string name="received_track">Қосылды: %1$s</string>
     <string name="transfer_connection">Көлікке қосылу</string>
-    <string name="transfer_instructions">Көліктің Wi-Fi желісіне қосылыңыз. Voyah Music қолданбасында «Телефонды қосу» түймесін басып, көрсетілген QR кодын сканерлеңіз.</string>
+    <string name="transfer_instructions">Екі құрылғыны бір Wi-Fi желісіне немесе көлікті телефонның кіру нүктесіне қосыңыз. Көлік экранында Music қолданбасын ашып, «Телефонды қосу» түймесін басыңыз да, көрсетілген QR кодын сканерлеңіз.</string>
     <string name="address_example">192.168.1.20</string>
     <string name="code_hint">8 цифр</string>
     <string name="files">Жіберілетін файлдар</string>
@@ -108,7 +107,7 @@
     <string name="bad_address">Voyah Music көрсеткен IP мекенжайын енгізіңіз.</string>
     <string name="bad_code">Voyah Music көрсеткен 8 цифрды енгізіңіз.</string>
     <string name="wrong_code">Код сәйкес келмеді. Көлік экранындағы кодты тексеріңіз.</string>
-    <string name="phone_no_wifi">Көліктің Wi-Fi желісіне қосылып, IP мекенжайын тексеріңіз.</string>
+    <string name="phone_no_wifi">Көліктің IP мекенжайын тексеріңіз. Екі құрылғы бір Wi-Fi желісінде болуы немесе көлік телефонның кіру нүктесіне қосылуы керек.</string>
     <string name="connection_lost">Көлікке қосылу мүмкін болмады. Voyah Music қолданбасын ашып, қайталап көріңіз.</string>
     <string name="format_error">Файл оқылмайды немесе аудио пішімі қолдау таппайды.</string>
     <string name="size_error">Файл 2 ГБ шегінен асады.</string>

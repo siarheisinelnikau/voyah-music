@@ -24,6 +24,7 @@ while IFS= read -r name; do
   case "$GH_REPO:$name" in
     "siarheisinelnikau/voyah-radio:VoyahRadio-$tag.apk") package=app.voyahradio ;;
     "siarheisinelnikau/voyah-music:VoyahMusic-$tag.apk") package=app.voyahmusic.player ;;
+    "siarheisinelnikau/voyah-music:MazdaEZ6Music-$tag.apk") package=app.mazdaez6music.player ;;
     "siarheisinelnikau/voyah-music:VoyahMusicTransfer-$tag.apk") package=app.voyahmusic.transfer ;;
     "siarheisinelnikau/youtube-web:YouTubeWeb-$tag.apk") package=org.openvoyah.youtube ;;
     *) echo "::error::Unexpected Android release asset: $name"; exit 1 ;;

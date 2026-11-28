@@ -4,8 +4,27 @@ plugins {
 
 android {
     namespace 'app.voyahmusic.player'
+    buildFeatures {
+        buildConfig true
+    }
+
+    flavorDimensions 'vehicle'
+    productFlavors {
+        voyah {
+            dimension 'vehicle'
+            buildConfigField 'boolean', 'MAZDA_EZ6', 'false'
+        }
+        mazdaEz6 {
+            dimension 'vehicle'
+            applicationId 'app.mazdaez6music.player'
+            buildConfigField 'boolean', 'MAZDA_EZ6', 'true'
+            buildConfigField 'String', 'RELEASE_ASSET', '"MazdaEZ6Music"'
+        }
+    }
+
     defaultConfig {
         applicationId 'app.voyahmusic.player'
+        buildConfigField 'String', 'RELEASE_ASSET', '"VoyahMusic"'
     }
 }
 

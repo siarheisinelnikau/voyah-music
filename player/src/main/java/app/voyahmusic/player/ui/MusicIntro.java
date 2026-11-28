@@ -290,7 +290,7 @@ final class MusicIntro extends View {
         content = activity.findViewById(android.R.id.content);
         setTag(TAG);
         density = getResources().getDisplayMetrics().density;
-        title = activity.getString(R.string.player_name);
+        title = activity.getString(app.voyahmusic.player.R.string.player_name);
         caption = activity.getString(R.string.player_intro_caption);
         setImportantForAccessibility(IMPORTANT_FOR_ACCESSIBILITY_NO);
         // Above the bar backgrounds that the window adds later, without a shadow.

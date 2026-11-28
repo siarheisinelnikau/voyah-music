@@ -13,6 +13,6 @@ public final class PlayerApp extends MusicApp {
 
     @Override
     protected String releaseName() {
-        return "VoyahMusic";
+        return BuildConfig.RELEASE_ASSET;
     }
 }

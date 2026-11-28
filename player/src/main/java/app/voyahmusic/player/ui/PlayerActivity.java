@@ -5,6 +5,7 @@ import android.animation.AnimatorListenerAdapter;
 import android.animation.ValueAnimator;
 import android.app.AlertDialog;
 import android.content.ComponentName;
+import android.content.Context;
 import android.content.Intent;
 import android.content.ServiceConnection;
 import android.content.res.ColorStateList;
@@ -106,13 +107,12 @@ public final class PlayerActivity extends MusicActivity {
     private LinearLayout receiveBody;
     private TextView title, artist, elapsed, total, problem, emptyTitle, emptyHint, libraryTitle;
     private ImageButton previous, play, next, shuffle, repeat;
-    private Button receiveButton;
+    private View receiveButton;
     private SeekBar seek;
     private ImageButton sortButton;
     private MusicVisualizer visualizer;
     private FrameLayout stage;
     private View emblem;
-    private boolean compactStage;
     private TrackAdapter adapter;
     private ListView list;
     private LinearLayout mainRoot;
@@ -240,41 +240,28 @@ public final class PlayerActivity extends MusicActivity {
     }
 
     @Override
+    protected void attachBaseContext(Context base) {
+        super.attachBaseContext(ScreenScale.apply(base));
+    }
+
+    @Override
     protected void showMain() {
         hideKeyboard();
         LinearLayout root = page();
         mainRoot = root;
         int width = getResources().getConfiguration().screenWidthDp;
         int height = getResources().getConfiguration().screenHeightDp;
-        boolean wide = width >= 720;
+        boolean wide = width >= 720 && width * 2 >= height * 3;
         boolean compact = !wide || height < 470;
         int panelWidth = Math.min(445, Math.max(320, (int) (width * 0.36f)));
-        LinearLayout header;
-        if (wide) {
-            // As in Voyah Radio, the library's own row moves up beside Settings, above the library, so the track list
-            // starts level with the player card and shows more tracks.
-            header = ui.row();
-            TextView name = ui.text(getString(R.string.player_name), 25, UiKit.TEXT, true);
-            ui.truncate(name, 2);
-            name.setMinHeight(ui.dp(52));
-            name.setGravity(Gravity.CENTER_VERTICAL);
-            header.addView(name, ui.dp(panelWidth), WRAP);
-            ui.gap(header, 18);
-            libraryHeader(header, true);
-            ui.gap(header, 8);
-            settingsIcon(header);
-        } else {
-            header = heading(getString(R.string.player_name), false);
-            settingsButton(header);
-        }
-        ui.add(root, header, MATCH, WRAP, 0);
         LinearLayout content = wide ? ui.row() : ui.column();
         content.setGravity(Gravity.TOP);
-        LinearLayout.LayoutParams fill = new LinearLayout.LayoutParams(MATCH, 0, 1f);
-        fill.topMargin = ui.dp(12);
-        root.addView(content, fill);
-        LinearLayout player = playerCard(compact, width < 375);
-        LinearLayout library = libraryCard(wide);
+        root.addView(content, new LinearLayout.LayoutParams(MATCH, 0, 1f));
+        LinearLayout player = playerCard(compact, width < 375, wide);
+        int libraryWidth = width - 2 * (wide ? 28 : 16) - (wide ? panelWidth + 18 : 0);
+        boolean singleRow = libraryWidth >= 640
+                || (!wide && libraryWidth >= (folderId == 0 ? 440 : 500));
+        LinearLayout library = libraryCard(wide, singleRow);
         if (wide) {
             content.addView(player, ui.dp(panelWidth), MATCH);
             LinearLayout.LayoutParams remainder = new LinearLayout.LayoutParams(0, MATCH, 1f);
@@ -296,39 +283,50 @@ public final class PlayerActivity extends MusicActivity {
         if (!query.isEmpty()) searchBox.post(() -> openSearch(false, false));
     }
 
-    private LinearLayout playerCard(boolean compact, boolean narrow) {
+    private LinearLayout playerCard(boolean compact, boolean narrow, boolean wide) {
         LinearLayout card = ui.card(compact ? 12 : 22);
         card.setBackground(ui.box(UiKit.PANEL, ui.selectedEdge, 22));
-        TextView label = ui.text(getText(R.string.now_playing), 15, ui.accent, true);
-        ui.center(card, label, WRAP, WRAP, 2);
-        compactStage = compact;
+        LinearLayout metadata = card;
+        LinearLayout summary = null;
+        if (!wide) {
+            summary = ui.row();
+            ui.add(card, summary, MATCH, WRAP, 0);
+            metadata = ui.column();
+            summary.addView(metadata, new LinearLayout.LayoutParams(0, WRAP, 3f));
+        }
+        TextView label = ui.text(getText(R.string.now_playing), wide ? 15 : 13, ui.accent, true);
+        if (wide) ui.center(metadata, label, WRAP, WRAP, 2);
+        else ui.add(metadata, label, MATCH, WRAP, 0);
+
         stage = new FrameLayout(this);
-        if (!compact) {
-            card.addView(new View(this), new LinearLayout.LayoutParams(1, 0, 1f));
-            int art = getResources().getConfiguration().screenHeightDp >= 590 ? 126 : 82;
-            // While music plays, its sound takes the emblem's place, as in Voyah Radio.
-            emblem = ui.emblem(art);
-            stage.addView(emblem, new FrameLayout.LayoutParams(ui.dp(art), ui.dp(art), Gravity.CENTER));
-            ui.add(card, stage, MATCH, ui.dp(art), 8);
+        int art = !wide ? 44 : getResources().getConfiguration().screenHeightDp >= 590 ? 126 : 82;
+        emblem = ui.emblem(art);
+        stage.addView(emblem, new FrameLayout.LayoutParams(ui.dp(art), ui.dp(art), Gravity.CENTER));
+        if (wide) {
+            LinearLayout.LayoutParams stageParams = new LinearLayout.LayoutParams(MATCH, 0, 1f);
+            stageParams.topMargin = ui.dp(8);
+            card.addView(stage, stageParams);
+        } else {
+            LinearLayout.LayoutParams stageParams = new LinearLayout.LayoutParams(0, ui.dp(62), 2f);
+            stageParams.leftMargin = ui.dp(8);
+            summary.addView(stage, stageParams);
         }
         visualizer = new MusicVisualizer(this, ui.accent);
         FrameLayout.LayoutParams visualParams = new FrameLayout.LayoutParams(MATCH, MATCH);
         visualParams.setMargins(ui.dp(8), ui.dp(4), ui.dp(8), ui.dp(4));
         stage.addView(visualizer, visualParams);
         title = ui.text("", compact ? 21 : 29, UiKit.TEXT, true);
-        title.setGravity(Gravity.CENTER);
+        title.setGravity(wide ? Gravity.CENTER : Gravity.START);
         ui.truncate(title, compact ? 1 : 2);
         // The title keeps the height of its longest form, so a track with a shorter title does not move the card;
         // a one-line title sits on the artist line, leaving the spare line above it.
         title.setMinLines(compact ? 1 : 2);
         if (!compact) title.setGravity(Gravity.CENTER_HORIZONTAL | Gravity.BOTTOM);
-        ui.add(card, title, MATCH, WRAP, compact ? 10 : 20);
+        ui.add(metadata, title, MATCH, WRAP, !wide ? 4 : compact ? 10 : 20);
         artist = ui.text("", 15, UiKit.MUTED, false);
-        artist.setGravity(Gravity.CENTER);
+        artist.setGravity(wide ? Gravity.CENTER : Gravity.START);
         ui.truncate(artist, 1);
-        ui.add(card, artist, MATCH, WRAP, 6);
-        if (!compact) card.addView(new View(this), new LinearLayout.LayoutParams(1, 0, 1f));
-        else ui.add(card, stage, MATCH, ui.dp(52), 6);
+        ui.add(metadata, artist, MATCH, WRAP, wide ? 6 : 4);
 
         seek = new SeekBar(this);
         seek.setMax(1000);
@@ -351,7 +349,7 @@ public final class PlayerActivity extends MusicActivity {
                 }
             }
         });
-        ui.add(card, seek, MATCH, ui.dp(38), compact ? 4 : 10);
+        ui.add(card, seek, MATCH, ui.dp(wide ? 38 : 30), compact ? 4 : 10);
         LinearLayout timestamps = ui.row();
         timestamps.setPadding(ui.dp(5), 0, ui.dp(5), 0);
         elapsed = ui.text("0:00", 14, UiKit.MUTED, false);
@@ -382,60 +380,69 @@ public final class PlayerActivity extends MusicActivity {
         controls.addView(next, ui.dp(touch), ui.dp(48));
         ui.gap(controls, narrow ? 4 : 6);
         controls.addView(repeat, ui.dp(touch), ui.dp(48));
-        ui.add(card, controls, MATCH, WRAP, compact ? 10 : 16);
+        ui.add(card, controls, MATCH, WRAP, !wide ? 6 : compact ? 10 : 16);
         problem = ui.text(getText(R.string.playback_error), 14, UiKit.ERROR, false);
         problem.setVisibility(View.GONE);
         ui.add(card, problem, MATCH, WRAP, 9);
         return card;
     }
 
-    private LinearLayout libraryCard(boolean wide) {
+    private LinearLayout libraryCard(boolean wide, boolean singleRow) {
         LinearLayout library = ui.card(wide ? 16 : 12);
-        if (!wide) {
-            LinearLayout header = ui.row();
-            libraryHeader(header, false);
-            ui.add(library, header, MATCH, WRAP, 0);
+        LinearLayout header = ui.row();
+        boolean inlineUpdate = wide && singleRow;
+        if (!inlineUpdate) {
+            LinearLayout updates = ui.row();
+            updates.setGravity(Gravity.END | Gravity.CENTER_VERTICAL);
+            updateButton(updates);
+            ui.add(library, updates, MATCH, WRAP, 0);
         }
+        ui.add(library, header, MATCH, WRAP, 0);
+        libraryHeader(header, singleRow, inlineUpdate);
+        LinearLayout actions = header;
+        if (!singleRow) {
+            actions = ui.row();
+            actions.setGravity(Gravity.END | Gravity.CENTER_VERTICAL);
+            ui.add(library, actions, MATCH, WRAP, 8);
+        }
+        libraryActions(actions, !wide);
+
         FrameLayout body = new FrameLayout(this);
         LinearLayout.LayoutParams listSpace = new LinearLayout.LayoutParams(MATCH, 0, 1f);
-        if (!wide) listSpace.topMargin = ui.dp(10);
+        listSpace.topMargin = ui.dp(10);
         library.addView(body, listSpace);
         return libraryBody(library, body);
     }
 
-    /**
-     * The library's title and buttons: in the page header on wide screens, at the top of the library card otherwise.
-     *
-     * <p>The buttons keep one order and fixed places at the right: search, sort, new folder, Connect phone and, on wide
-     * screens, Settings after them, all 8 dp apart. New folder stays in its place, dimmed, inside a folder; an
-     * offered update appears left of the search button, the search field opens leftward over the title, and a long
-     * title ends in an ellipsis, so none of them moves a button.
-     */
-    private void libraryHeader(LinearLayout header, boolean wide) {
+    private void libraryHeader(LinearLayout header, boolean singleRow, boolean inlineUpdate) {
         if (folderId != 0) {
             header.addView(ui.iconButton(UiKit.Icon.BACK, getText(R.string.back), false, () -> openFolder(0)),
                     ui.dp(48), ui.dp(48));
             ui.gap(header, 8);
         }
-        // The list outside folders has no heading; inside a folder this shows the folder's name.
-        libraryTitle = ui.text("", wide ? 24 : 20, UiKit.TEXT, true);
+        // The weighted space also lets the search field expand to the left.
+        libraryTitle = ui.text("", singleRow ? 24 : 20, UiKit.TEXT, true);
         ui.truncate(libraryTitle, 1);
         header.addView(libraryTitle, ui.weighted());
         ui.gap(header, 8);
-        if (wide) updateButton(header);
+        if (inlineUpdate) updateButton(header);
         header.addView(searchBox(), new LinearLayout.LayoutParams(ui.dp(48), ui.dp(48)));
         ui.gap(header, 8);
         sortButton = ui.iconButton(UiKit.Icon.SORT, getText(R.string.sort_tracks), false, this::chooseOrder);
         header.addView(sortButton, ui.dp(48), ui.dp(48));
-        ui.gap(header, 8);
+        if (singleRow) ui.gap(header, 8);
+    }
+
+    private void libraryActions(LinearLayout actions, boolean compact) {
         View newFolder = ui.iconButton(UiKit.Icon.FOLDER_ADD, getText(R.string.new_folder), false, this::createFolder);
-        // Folders hold no folders, so inside one the button stays in its place dimmed, as unavailable buttons are,
-        // instead of leaving and moving the others.
         ui.enabled(newFolder, folderId == 0);
-        header.addView(newFolder, ui.dp(48), ui.dp(48));
-        ui.gap(header, 8);
-        receiveButton = ui.button(getText(R.string.receive), false, this::openReceiver);
-        header.addView(receiveButton, WRAP, WRAP);
+        actions.addView(newFolder, ui.dp(48), ui.dp(48));
+        ui.gap(actions, 8);
+        receiveButton = compact ? ui.iconButton(UiKit.Icon.SEND, getText(R.string.receive), false, this::openReceiver)
+                : ui.button(getText(R.string.receive), false, this::openReceiver);
+        actions.addView(receiveButton, compact ? ui.dp(48) : WRAP, compact ? ui.dp(48) : WRAP);
+        ui.gap(actions, 8);
+        settingsIcon(actions);
     }
 
     private LinearLayout libraryBody(LinearLayout library, FrameLayout body) {
@@ -674,7 +681,8 @@ public final class PlayerActivity extends MusicActivity {
         boolean emphasizeReceive = tracks != null && tracks.isEmpty();
         if (receiveButton.isSelected() != emphasizeReceive) {
             receiveButton.setSelected(emphasizeReceive);
-            ui.styleButton(receiveButton, emphasizeReceive);
+            if (receiveButton instanceof Button button) ui.styleButton(button, emphasizeReceive);
+            else option((ImageButton) receiveButton, emphasizeReceive, UiKit.Icon.SEND, R.string.receive);
         }
         adapter.rows = result;
         adapter.notifyDataSetChanged();
@@ -879,12 +887,11 @@ public final class PlayerActivity extends MusicActivity {
         if (state != null && state.playing()) main.postDelayed(tick, 500);
     }
 
-    /** Shows the sound in place of the emblem while music plays; the compact layout shows it only then. */
+    /** The visualization takes the place of the emblem during playback. */
     private void renderStage(PlaybackService.State state) {
         String mode = prefs.visualization();
         boolean drawing = PlayerStage.drawing(playback != null, state != null && state.wantsPlay(), mode);
-        if (compactStage) stage.setVisibility(drawing ? View.VISIBLE : View.GONE);
-        else if (emblem != null) emblem.setVisibility(drawing ? View.INVISIBLE : View.VISIBLE);
+        emblem.setVisibility(drawing ? View.INVISIBLE : View.VISIBLE);
         visualizer.setVisibility(drawing ? View.VISIBLE : View.GONE);
         visualizer.update(playback == null ? null : playback.meter(), mode, drawing, prefs.smoothVisualization());
     }

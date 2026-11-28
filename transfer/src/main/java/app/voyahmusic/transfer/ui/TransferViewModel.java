@@ -452,7 +452,7 @@ public final class TransferViewModel {
     }
 
     private WifiLink wifi(InetAddress address) {
-        for (WifiLink candidate : WifiLink.available(context, false)) {
+        for (WifiLink candidate : WifiLink.available(context, true)) {
             if (candidate.includes(address)) return candidate;
         }
         return null;

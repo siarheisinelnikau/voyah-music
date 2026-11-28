@@ -18,8 +18,18 @@ case "$GH_REPO" in
     cp "$work/app/build/outputs/apk/release/app-release-unsigned.apk" "$out/VoyahRadio-$tag.apk"
     ;;
   siarheisinelnikau/voyah-music)
-    bash "$work/gradlew" -p "$work" :shared:testReleaseUnitTest :player:testReleaseUnitTest       :player:lintRelease :transfer:lintRelease :player:assembleRelease :transfer:assembleRelease
-    cp "$work/player/build/outputs/apk/release/player-release-unsigned.apk" "$out/VoyahMusic-$tag.apk"
+    if [[ -d "$work/player/src/mazdaEz6" ]]; then
+      bash "$work/gradlew" -p "$work" :shared:testReleaseUnitTest \
+        :player:testVoyahReleaseUnitTest :player:testMazdaEz6ReleaseUnitTest \
+        :player:lintVoyahRelease :player:lintMazdaEz6Release :transfer:lintRelease \
+        :player:assembleVoyahRelease :player:assembleMazdaEz6Release :transfer:assembleRelease
+      cp "$work/player/build/outputs/apk/voyah/release/player-voyah-release-unsigned.apk" "$out/VoyahMusic-$tag.apk"
+      cp "$work/player/build/outputs/apk/mazdaEz6/release/player-mazdaEz6-release-unsigned.apk" "$out/MazdaEZ6Music-$tag.apk"
+    else
+      bash "$work/gradlew" -p "$work" :shared:testReleaseUnitTest :player:testReleaseUnitTest \
+        :player:lintRelease :transfer:lintRelease :player:assembleRelease :transfer:assembleRelease
+      cp "$work/player/build/outputs/apk/release/player-release-unsigned.apk" "$out/VoyahMusic-$tag.apk"
+    fi
     cp "$work/transfer/build/outputs/apk/release/transfer-release-unsigned.apk" "$out/VoyahMusicTransfer-$tag.apk"
     ;;
   siarheisinelnikau/youtube-web)
